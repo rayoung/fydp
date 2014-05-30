@@ -1,6 +1,6 @@
-package com.example.fydp;
+package com.example.awgt;
 
-import com.example.fydp.util.SystemUiHider;
+import com.example.awgt.util.SystemUiHider;
 
 import android.annotation.TargetApi;
 import android.app.Activity;

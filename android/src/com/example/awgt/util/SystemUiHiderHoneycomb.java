@@ -1,4 +1,4 @@
-package com.example.fydp.util;
+package com.example.awgt.util;
 
 import android.annotation.TargetApi;
 import android.app.Activity;
