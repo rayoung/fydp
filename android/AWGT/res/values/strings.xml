@@ -3,5 +3,7 @@
 
     <string name="app_name">AWGT</string>
     <string name="enable_mic">Start Recording</string>
-
+	<string name="action_bluetooth">Bluetooth</string>
+    <string name="action_search_bluetooth">Search Bluetooth</string>
+    
 </resources>
