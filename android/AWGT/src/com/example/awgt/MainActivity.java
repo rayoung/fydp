@@ -2,10 +2,11 @@ package com.example.awgt;
 
 import android.annotation.TargetApi;
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
-import android.content.DialogInterface;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -14,6 +15,7 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.Button;
 import android.widget.Toast;
 
 import com.example.awgt.util.SystemUiHider;
@@ -25,6 +27,9 @@ import com.example.awgt.util.SystemUiHider;
  * @see SystemUiHider
  */
 public class MainActivity extends Activity {
+	// get phone's bluetooth adapter
+	private final BluetoothAdapter BA = BluetoothAdapter.getDefaultAdapter();
+	
     /**
      * Whether or not the system UI should be auto-hidden after
      * {@link #AUTO_HIDE_DELAY_MILLIS} milliseconds.
@@ -61,7 +66,7 @@ public class MainActivity extends Activity {
 
         final View controlsView = findViewById(R.id.fullscreen_content_controls);
         final View contentView = findViewById(R.id.fullscreen_content);
-
+        
         // Set up an instance of SystemUiHider to control the system UI for
         // this activity.
         mSystemUiHider = SystemUiHider.getInstance(this, contentView, HIDER_FLAGS);
@@ -119,7 +124,14 @@ public class MainActivity extends Activity {
         // Upon interacting with UI controls, delay any scheduled hide()
         // operations to prevent the jarring behavior of controls going away
         // while interacting with the UI.
-        findViewById(R.id.dummy_button).setOnTouchListener(mDelayHideTouchListener);
+        findViewById(R.id.start_recording).setOnTouchListener(mDelayHideTouchListener);
+        
+        // set start recording button's initial state
+        enableMicBtn();
+        
+        // set up broadcast receiver to change start recording button when bluetooth connects
+        IntentFilter filter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
+        this.registerReceiver(btReceiver, filter);
     }
 
     @Override
@@ -190,7 +202,41 @@ public class MainActivity extends Activity {
     
     private void enableBluetooth() 
     {
-    		//Intent bluetooth = new Intent(this, BluetoothSettingsActivity.class);
-    		//startActivity(bluetooth);
+    		Intent bluetooth = new Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS);
+    		startActivity(bluetooth);
     }  
+    
+    private void enableMicBtn()
+    {
+        // disable start recording button if there is no bluetooth adapter or if it is not connected
+        Button btn_enable_mic = (Button) findViewById(R.id.start_recording);
+        btn_enable_mic.setEnabled(false);
+        if (BA != null)
+        {
+        	if(BA.getState() != BluetoothAdapter.STATE_CONNECTED)
+        	{
+        		btn_enable_mic.setEnabled(false);
+        	}
+        }
+    }
+    
+    private final BroadcastReceiver btReceiver = new BroadcastReceiver() 
+    {
+        @Override
+        public void onReceive(Context context, Intent intent) 
+        {
+            final String action = intent.getAction();
+
+            if (action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) 
+            {
+            	enableMicBtn();
+            }
+        }
+    };
+
+    public void startRecording(View view)
+    {
+        //dummy code
+    	Toast.makeText(getApplicationContext(), "button clicked" , Toast.LENGTH_LONG).show();
+    }
 }
