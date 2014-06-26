@@ -3,6 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#0099cc"
+    android:paddingBottom="@dimen/abc_action_button_min_width"
     tools:context="com.example.awgt.MainActivity" >
 
     <!--
@@ -17,7 +18,8 @@
         android:layout_height="match_parent"
         android:gravity="center"
         android:keepScreenOn="true"
-        android:textColor="#33b5e5"
+        android:text=""
+        android:textColor="@color/black_overlay"
         android:textSize="50sp"
         android:textStyle="bold" />
 
@@ -36,20 +38,33 @@
             style="?metaButtonBarStyle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical|center_horizontal"
-            android:background="@color/black_overlay"
-            android:orientation="horizontal"
+            android:layout_gravity="bottom|center_horizontal"
+            android:orientation="vertical"
             tools:ignore="UselessParent" >
 
             <Button
                 android:id="@+id/start_recording"
                 style="?metaButtonBarButtonStyle"
-                android:layout_width="0dp"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/abc_action_bar_icon_vertical_padding"
+                android:layout_weight="1"
+                android:background="@color/black_overlay"
+                android:onClick="startRecording"
+                android:text="@string/start_recording" />
+            
+            <Button
+                android:id="@+id/send_data"
+                style="?metaButtonBarButtonStyle"
+                android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/start_recording"
-                android:onClick="startRecording" />
+                android:background="@color/black_overlay"
+                android:onClick="startRecording"
+                android:text="@string/send_data" />
+            
         </LinearLayout>
+
     </FrameLayout>
 
 </FrameLayout>

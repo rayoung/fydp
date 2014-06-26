@@ -3,7 +3,10 @@
 
     <string name="app_name">AWGT</string>
     <string name="start_recording">Start Recording</string>
+    <string name="stop_recording">Stop Recording</string>
 	<string name="action_bluetooth">Bluetooth</string>
     <string name="action_search_bluetooth">Search Bluetooth</string>
+    <string name="send_data">Send Data</string>
+    <string name="error_audio">Audio Initialization Failed</string>
     
 </resources>
