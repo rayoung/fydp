@@ -1,5 +1,6 @@
 depend_Debug_CSR101x_A05/
 *.mak
+*.elf
 
 #################
 ## Eclipse
