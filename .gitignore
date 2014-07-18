@@ -2,6 +2,7 @@
 ## Eclipse
 #################
 
+./firmware/awgt/depend_Debug_CSR101x_A05/
 *.pydevproject
 .project
 .metadata
