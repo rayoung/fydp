@@ -1,0 +1,64 @@
+<project buildenvironment="{067c869e-5bd9-4595-9f4c-60348133ad8e}" buildenvironmentname="uEnergy" executionenvironmentoption="XAP2+ P0 ELF DWARF BINUTILS UENERGYSDK" buildenvironmentoption="UENERGYSDK" executionenvironmentname="uEnergy" name="uEnergy" executionenvironment="{39e65239-59f4-4d78-b84a-26eaebfaa4de}" >
+ <folder name="C Files" >
+  <extension name="c" />
+  <file path="app_hw.c" />
+  <file path="buzzer.c" />
+  <file path="gap_service.c" />
+  <file path="app_main.c" />
+  <file path="app_gatt.c" />
+  <file path="hello_service.c" />
+ </folder>
+ <folder name="Header Files" >
+  <extension name="h" />
+  <file path="app_main.h" />
+  <file path="app_gatt.h" />
+  <file path="appearance.h" />
+  <file path="buzzer.h" />
+  <file path="gap_conn_params.h" />
+  <file path="gap_service.h" />
+  <file path="gap_uuids.h" />
+  <file path="gatt_service_uuids.h" />
+  <file path="user_config.h" >
+   <properties>
+    <configuration name="Debug" />
+   </properties>
+  </file>
+  <file path="app_hw.h" />
+  <file path="hello_service_uuids.h" />
+  <file path="hello_service.h" />
+ </folder>
+ <folder name="Assembler Files" >
+  <extension name="asm" />
+ </folder>
+ <folder name="GATT db files" >
+  <extension name="db" />
+  <file path="app_gatt_db.db" />
+  <file path="gap_service_db.db" />
+  <file path="gatt_service_db.db" />
+  <file path="hello_service_db.db" />
+ </folder>
+ <file path="app_csr100x.keyr" />
+ <file path="app_csr101x_A05.keyr" />
+ <properties currentconfiguration="Debug" >
+  <configuration name="Debug" >
+   <property key="csr100x_keyr" >app_csr100x.keyr</property>
+   <property key="csr101x_a05_keyr" >app_csr101x_A05.keyr</property>
+   <property key="debugtransport" >[SPITRANS=USB SPIPORT=0]</property>
+   <property key="defines" ></property>
+   <property key="hw_version" >0</property>
+   <property key="libs" ></property>
+   <property key="master_db" >app_gatt_db.db</property>
+   <property key="output" ></property>
+  </configuration>
+  <configuration name="Release" >
+   <property key="csr100x_keyr" >app_csr100x.keyr</property>
+   <property key="csr101x_a05_keyr" >app_csr101x_A05.keyr</property>
+   <property key="debugtransport" ></property>
+   <property key="defines" ></property>
+   <property key="hw_version" >0</property>
+   <property key="libs" ></property>
+   <property key="master_db" >app_gatt_db.db</property>
+   <property key="output" ></property>
+  </configuration>
+ </properties>
+</project>
