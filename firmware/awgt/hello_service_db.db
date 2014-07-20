@@ -25,7 +25,7 @@ primary_service {
         uuid : UUID_USERNAME,
 
         name : "USERNAME",
-        properties : read,
+        properties : [read, write_cmd],
         flags : [FLAG_IRQ]
     }
 }

@@ -18,6 +18,7 @@
 #include <timer.h>
 #include <mem.h>
 #include <config_store.h>
+#include <debug.h>
 
 
 /* Upper Stack API */
@@ -167,6 +168,9 @@ static void handleSignalGattAccessInd(GATT_ACCESS_IND_T *p_event_data);
  */
 static void handleSignalLmDisconnectComplete(
                     HCI_EV_DATA_DISCONNECT_COMPLETE_T *p_event_data);
+
+static uint16 UartDataRxCallback ( void* p_data, uint16 data_count,
+        uint16* p_num_additional_words );
 
 /*============================================================================*
  *  Private Function Implementations
@@ -647,7 +651,7 @@ static void handleSignalGattAccessInd(GATT_ACCESS_IND_T *p_event_data)
             /* Received GATT ACCESS IND with write access */
             if(p_event_data->flags == 
                 (ATT_ACCESS_WRITE | 
-                 ATT_ACCESS_PERMISSION | 
+                 ATT_ACCESS_PERMISSION |
                  ATT_ACCESS_WRITE_COMPLETE))
             {
                 HandleAccessWrite(p_event_data);
@@ -1081,6 +1085,8 @@ extern void AppInit(sleep_state last_sleep_state)
 
     GattAddDatabaseReq(gatt_db_length, p_gatt_db);
 
+    DebugInit(1, UartDataRxCallback, NULL);
+    DebugWriteString("Initialized\r\n");
 }
 
 
@@ -1242,4 +1248,25 @@ bool AppProcessLmEvent(lm_event_code event_code, LM_EVENT_T *p_event_data)
     }
 
     return TRUE;
+}
+
+/****************************************************************************
+NAME
+    UartDataRxCallback
+
+DESCRIPTION
+    This callback is issued when data is received over UART. Application
+    may ignore the data, if not required. For more information refer to
+    the API documentation for the type "uart_data_out_fn"
+
+RETURNS
+    The number of words processed, return data_count if all of the received
+    data had been processed (or if application don't care about the data)
+*/
+static uint16 UartDataRxCallback ( void* p_data, uint16 data_count,
+        uint16* p_num_additional_words )
+{
+    *p_num_additional_words = 0; /* Application do not need any additional
+                                       data to be received */
+    return data_count;
 }

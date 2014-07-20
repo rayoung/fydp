@@ -31,6 +31,11 @@ extern void HelloServiceDataInit(void);
  */
 extern void HelloServiceInitChipReset(void);
 
+/* This function handles write operation on Hello service attributes
+ * maintained by the application
+ */
+extern void HelloServiceHandleAccessWrite(GATT_ACCESS_IND_T *p_ind);
+
 /* This function handles read operation on Hello service attributes
  * maintained by the application
  */

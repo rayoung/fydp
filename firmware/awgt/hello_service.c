@@ -42,7 +42,7 @@ typedef struct
 } HELLO_SERVICE_DATA_T;
 
 /* username('\0') */ 
-static uint8 g_username[] = "AWGT";
+static uint8 g_username[] = "00:00:00";
 /*============================================================================*
  *  Private Data
  *===========================================================================*/
@@ -91,6 +91,44 @@ extern void HelloServiceInitChipReset(void)
     /* Nothing to do*/
 }
 
+/*----------------------------------------------------------------------------*
+ *  NAME
+ *      HelloServiceHandleAccessWrite
+ *
+ *  DESCRIPTION
+ *      This function handles write operation on hello service attributes
+ *      maintained by the application and responds with the GATT_ACCESS_RSP
+ *      message.
+ *
+ *  RETURNS
+ *      Nothing. 
+ *
+ *---------------------------------------------------------------------------*/
+
+extern void HelloServiceHandleAccessWrite(GATT_ACCESS_IND_T *p_ind)
+{
+    uint16 i;
+    sys_status rc = sys_status_success;
+    
+    switch(p_ind->handle)
+    {
+        case HANDLE_USERNAME:
+            for (i = 0; i < p_ind->size_value; i++)
+            {
+                g_hs_data.p_username[i] = p_ind->value[i];
+            }
+        break;
+        
+        default:
+            /* No more IRQ characteristics */
+            rc = gatt_status_read_not_permitted;
+        break;
+    }
+
+    
+    /* Send Access response */
+    GattAccessRsp(p_ind->cid, p_ind->handle, rc, 0, NULL);
+}
 
 /*----------------------------------------------------------------------------*
  *  NAME

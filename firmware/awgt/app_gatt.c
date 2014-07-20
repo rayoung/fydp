@@ -306,6 +306,7 @@ extern void HandleAccessRead(GATT_ACCESS_IND_T *p_ind)
     /* User can add more services here to support the 
      * services read operation 
      */
+    
     if(GapCheckHandleRange(p_ind->handle))
     {
         /* Attribute handle belongs to GAP service */
@@ -351,16 +352,22 @@ extern void HandleAccessWrite(GATT_ACCESS_IND_T *p_ind)
     /* User can add more services here to support 
      * the services write operation
      */
-
-    /* Application doesn't support 'Write' operation on received 
-     * attribute handle, hence return 'gatt_status_write_not_permitted'
-     * status
-     */
-    GattAccessRsp(p_ind->cid, p_ind->handle, 
-                  gatt_status_write_not_permitted,
-                  0, NULL);
-
-
+    
+    if(HelloServiceCheckHandleRange(p_ind->handle))
+    {
+        /* Attribute handle belongs to Hello service */
+        HelloServiceHandleAccessWrite(p_ind);
+    }    
+    else
+    {
+        /* Application doesn't support 'Write' operation on received 
+         * attribute handle, hence return 'gatt_status_write_not_permitted'
+         * status
+         */
+        GattAccessRsp(p_ind->cid, p_ind->handle,
+                      gatt_status_write_not_permitted,
+                      0, NULL);
+    }
 }
 
 
