@@ -16,6 +16,7 @@
 #include <gatt.h>
 #include <gatt_prim.h>
 #include <buf_utils.h>
+#include <debug.h>
 
 /*============================================================================*
  *  Local Header Files
@@ -23,6 +24,7 @@
 
 #include "app_main.h"
 #include "hello_service.h"
+#include "motor.h"
 #include "app_gatt_db.h"
 
 /*============================================================================*
@@ -42,7 +44,7 @@ typedef struct
 } HELLO_SERVICE_DATA_T;
 
 /* username('\0') */ 
-static uint8 g_username[] = "00:00:00";
+static uint8 g_username[] = {0x0, 0x0};
 /*============================================================================*
  *  Private Data
  *===========================================================================*/
@@ -107,16 +109,16 @@ extern void HelloServiceInitChipReset(void)
 
 extern void HelloServiceHandleAccessWrite(GATT_ACCESS_IND_T *p_ind)
 {
-    uint16 i;
     sys_status rc = sys_status_success;
     
     switch(p_ind->handle)
     {
         case HANDLE_USERNAME:
-            for (i = 0; i < p_ind->size_value; i++)
-            {
-                g_hs_data.p_username[i] = p_ind->value[i];
-            }
+            /* direction */
+            g_hs_data.p_username[0] = p_ind->value[0];
+            /* 8-bit duty cycle */
+            g_hs_data.p_username[1] = p_ind->value[1];
+            MotorSetVelocity((g_hs_data.p_username[0] != 0), g_hs_data.p_username[1]);
         break;
         
         default:

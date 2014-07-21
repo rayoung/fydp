@@ -56,7 +56,7 @@
 extern void MotorInitHardware(void)
 {
     /* PWM0 is bugged, use 1,2 or 3 instead */
-    MotorSetVelocity(TRUE, 32);    
+    MotorSetVelocity(TRUE, 0);
     PioEnablePWM(1, TRUE);
     
     /* Connect PWM1 to motor PIOs */
