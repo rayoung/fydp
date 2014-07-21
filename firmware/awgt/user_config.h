@@ -17,12 +17,6 @@
  *  Public Definitions
  *============================================================================*/
 
-/* Buzzer code has been put under compiler flag ENABLE_BUZZER. If required
- * this flag can be disabled like at the time of current consumption 
- * measurement 
- */
-#define ENABLE_BUZZER
-
 /* This macro defines the Advertisement timer, on expiry of which application
  * enters idle state. For disabling the expiry of this timer, define it to be 
  * zero.

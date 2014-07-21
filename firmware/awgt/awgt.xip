@@ -1,19 +1,17 @@
 <project buildenvironment="{067c869e-5bd9-4595-9f4c-60348133ad8e}" buildenvironmentname="uEnergy" executionenvironmentoption="XAP2+ P0 ELF DWARF BINUTILS UENERGYSDK" buildenvironmentoption="UENERGYSDK" executionenvironmentname="uEnergy" name="uEnergy" executionenvironment="{39e65239-59f4-4d78-b84a-26eaebfaa4de}" >
  <folder name="C Files" >
   <extension name="c" />
-  <file path="app_hw.c" />
-  <file path="buzzer.c" />
   <file path="gap_service.c" />
   <file path="app_main.c" />
   <file path="app_gatt.c" />
   <file path="hello_service.c" />
+  <file path="motor.c" />
  </folder>
  <folder name="Header Files" >
   <extension name="h" />
   <file path="app_main.h" />
   <file path="app_gatt.h" />
   <file path="appearance.h" />
-  <file path="buzzer.h" />
   <file path="gap_conn_params.h" />
   <file path="gap_service.h" />
   <file path="gap_uuids.h" />
@@ -23,9 +21,9 @@
     <configuration name="Debug" />
    </properties>
   </file>
-  <file path="app_hw.h" />
   <file path="hello_service_uuids.h" />
   <file path="hello_service.h" />
+  <file path="motor.h" />
  </folder>
  <folder name="Assembler Files" >
   <extension name="asm" />

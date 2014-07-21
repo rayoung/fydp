@@ -2,15 +2,15 @@
  *  Copyright (C) Cambridge Silicon Radio Limited 2012-2013
  *
  *  FILE
- *      app_hw.h
+ *      motor.h
  *
  *  DESCRIPTION
- *      Header definitions for HW setup.
+ *      This file contains prototypes for accessing motor functionality.
  *
  *****************************************************************************/
 
-#ifndef __APP_HW_H__
-#define __APP_HW_H__
+#ifndef __MOTOR_H__
+#define __MOTOR_H__
 
 /*============================================================================*
  *  SDK Header Files
@@ -19,18 +19,22 @@
 #include <types.h>
 
 /*============================================================================*
- *  Local Header Files
+ *  Public Data Declarations
  *============================================================================*/
 
-/*============================================================================*
- *  Public Definitions
- *============================================================================*/
+#define PIO_MOTOR1      10
+
+#define PIO_MOTOR2      11
 
 /*============================================================================*
  *  Public Function Prototypes
  *============================================================================*/
 
-/* This function is called to initialise the application hardware */
-extern void AppInitHardware(void);
+/* This function initializes the motor hardware */
+extern void MotorInitHardware(void);
 
-#endif /* __APP_HW_H__ */
+/* This function sets the motor speed and direction */
+extern void MotorSetVelocity(bool ccw, uint8 duty);
+
+#endif /* __MOTOR_H__ */
+

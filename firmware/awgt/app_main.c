@@ -39,9 +39,8 @@
 
 #include "app_gatt.h"
 #include "app_gatt_db.h"
-#include "buzzer.h"
 #include "app_main.h"
-#include "app_hw.h"
+#include "motor.h"
 #include "gap_service.h"
 #include "hello_service.h"
 
@@ -784,9 +783,6 @@ extern void ReportPanic(app_panic_code panic_code)
 
 extern void AppHandleShortButtonPress(void)
 {
-    /* Indicate short button press using short beep */
-    SoundBuzzer(buzzer_beep_short);
-
     /* Handling signal as per current state */
     switch(g_app_data.state)
     {
@@ -903,16 +899,12 @@ extern void AppSetState(app_state new_state)
             {
                 /* Trigger advertisements. */
                 GattStartAdverts();
-
-                /* Indicate advertising mode by sounding two short beeps */
-                SoundBuzzer(buzzer_beep_twice);
             }
             break;
 
             case app_state_idle:
             {
-                /* Sound long beep to indicate non connectable mode*/
-                SoundBuzzer(buzzer_beep_long);
+
             }
             break;
 
@@ -1075,8 +1067,8 @@ extern void AppInit(sleep_state last_sleep_state)
     /* Initialise application data structure */
     appDataInit();
     
-    /* Initialise hello server H/W */
-    AppInitHardware();
+    /* Initialise motor pins */
+    MotorInitHardware();
 
     /* Tell GATT about our database. We will get a GATT_ADD_DB_CFM event when
      * this has completed.
@@ -1109,7 +1101,6 @@ void AppProcessSystemEvent(sys_event_id id, void *data)
         case sys_event_pio_changed:
         {
              /* Handle the PIO changed event. */
-             HandlePIOChangedEvent((pio_changed_data*)data);
         }
         break;
             
