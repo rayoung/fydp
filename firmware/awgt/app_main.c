@@ -1074,7 +1074,7 @@ extern void AppInit(sleep_state last_sleep_state)
 
     /* Initialise application data structure */
     appDataInit();
-
+    
     /* Initialise hello server H/W */
     AppInitHardware();
 
@@ -1084,7 +1084,7 @@ extern void AppInit(sleep_state last_sleep_state)
     p_gatt_db = GattGetDatabase(&gatt_db_length);
 
     GattAddDatabaseReq(gatt_db_length, p_gatt_db);
-
+    
     DebugInit(1, UartDataRxCallback, NULL);
     DebugWriteString("Initialized\r\n");
 }

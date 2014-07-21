@@ -29,6 +29,8 @@
  *  Private Definitions
  *============================================================================*/
 
+#define PIO_MOTOR1                  10
+
 /* Setup PIO 11 as Button PIO */
 #define BUTTON_PIO                  (11)
 
@@ -52,27 +54,18 @@
 
 extern void AppInitHardware(void)
 {
-    /* Setup PIOs
-     * PIO11 - Button
-     */
-    /* Set the button PIO to user mode */
-    PioSetModes(BUTTON_PIO_MASK, pio_mode_user);
-
-    /* Set the PIO direction as input. */
-    PioSetDir(BUTTON_PIO, PIO_DIRECTION_INPUT);
-
-    /* Pull up the PIO. */
-    PioSetPullModes(BUTTON_PIO_MASK, pio_mode_strong_pull_up);
-
-    /* Initialize Buzzer Hardware */
-    BuzzerInitHardware();
-
-    /* Setup button on PIO11 */
-    PioSetEventMask(BUTTON_PIO_MASK, pio_event_mode_both);
-
-    /* Save power by changing the I2C pull mode to pull down.*/
-    PioSetI2CPullMode(pio_i2c_pull_mode_strong_pull_down);
-
+    /* PWM0 is bugged, use 1,2 or 3 instead */
+    uint8 level = 192;
+    uint8 max = 255;
+    if (PioConfigPWM(1, pio_pwm_mode_push_pull, level, max-level, 0, level, max-level, 0, 0))
+    {     
+        PioEnablePWM(1, TRUE);
+    }
+    
+    /* Connect PWM1 to PIO10 */
+    PioSetMode(PIO_MOTOR1, pio_mode_pwm1);
+    PioSetDir(PIO_MOTOR1, TRUE);
+    PioSetPullModes((1UL << PIO_MOTOR1), pio_mode_strong_pull_up);
 }
 
 
