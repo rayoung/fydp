@@ -55,14 +55,24 @@
 
 extern void MotorInitHardware(void)
 {
-    /* PWM0 is bugged, use 1,2 or 3 instead */
+    /* motor initially idle */
     MotorSetVelocity(TRUE, 0);
-    PioEnablePWM(1, TRUE);
     
-    /* Connect PWM1 to motor PIOs */
+    /* PWM0 is bugged, use 1,2 or 3 instead */
     PioSetMode(PIO_MOTOR1, pio_mode_pwm1);
     PioSetDir(PIO_MOTOR1, TRUE);
     PioSetPullModes((1UL << PIO_MOTOR1), pio_mode_strong_pull_up);
+    
+    PioSetMode(PIO_MOTOR2, pio_mode_pwm2);
+    PioSetDir(PIO_MOTOR2, TRUE);
+    PioSetPullModes((1UL << PIO_MOTOR2), pio_mode_strong_pull_up);
+    
+    PioSetMode(PIO_MOTOR_nENABLE, pio_mode_user);
+    PioSetDir(PIO_MOTOR_nENABLE, TRUE);
+    PioSetPullModes((1UL << PIO_MOTOR_nENABLE), pio_mode_no_pulls);
+    PioSet(PIO_MOTOR_nENABLE, FALSE);
+    
+    MotorEnableSleep(FALSE);
 }
 
 /*----------------------------------------------------------------------------*
@@ -78,6 +88,36 @@ extern void MotorInitHardware(void)
  *---------------------------------------------------------------------------*/
 
 extern void MotorSetVelocity(bool ccw, uint8 duty)
+{    
+    if (ccw)
+    {
+        PioConfigPWM(1, pio_pwm_mode_push_pull, 255, 0, 255, 255, 0, 255, 0);
+        PioConfigPWM(2, pio_pwm_mode_push_pull, 255-duty, duty, 255, 255-duty, duty, 255, 0);
+    }
+    else
+    {
+        PioConfigPWM(2, pio_pwm_mode_push_pull, 255, 0, 255, 255, 0, 255, 0);
+        PioConfigPWM(1, pio_pwm_mode_push_pull, 255-duty, duty, 255, 255-duty, duty, 255, 0);
+    }
+}
+
+/*----------------------------------------------------------------------------*
+ *  NAME
+ *      MotorEnableSleep
+ *
+ *  DESCRIPTION
+ *      This function puts the motor driver to sleep
+ *
+ *  RETURNS/MODIFIES
+ *      Nothing
+ *
+ *---------------------------------------------------------------------------*/
+
+extern void MotorEnableSleep(bool enable)
 {
-    PioConfigPWM(1, pio_pwm_mode_push_pull, duty, 255-duty, 0, duty, 255-duty, 0, 0);
+    PioSet(PIO_MOTOR_nENABLE, !enable);
+    
+    /* toggle PWM interfaces */
+    PioEnablePWM(1, !enable);
+    PioEnablePWM(2, !enable);
 }
