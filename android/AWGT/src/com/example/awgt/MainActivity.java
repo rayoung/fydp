@@ -1,6 +1,9 @@
 package com.example.awgt;
 
+import java.util.LinkedHashMap;
 import java.util.Set;
+
+import org.jtransforms.fft.DoubleFFT_1D;
 
 import android.annotation.TargetApi;
 import android.app.Activity;
@@ -24,7 +27,6 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
-import ca.uol.aig.fftpack.RealDoubleFFT;
 
 import com.example.awgt.util.SystemUiHider;
 
@@ -48,9 +50,21 @@ public class MainActivity extends Activity {
 	private final int channel_config = AudioFormat.CHANNEL_IN_MONO;
 	private final int aud_format = AudioFormat.ENCODING_PCM_16BIT;
 	private final int sampleRate = 44100;
-	private final int bufferSize = AudioRecord.getMinBufferSize(sampleRate,
+	private final int minBufferSize = AudioRecord.getMinBufferSize(sampleRate,
 			channel_config, aud_format);
-	private AudioRecord micInput = new AudioRecord(AudioSource.DEFAULT, sampleRate,
+	private int bufferSize;
+	{
+		if (sampleRate > minBufferSize)
+		{
+			bufferSize = sampleRate;
+		}
+		else
+		{
+			bufferSize = ((int)(minBufferSize / sampleRate)) * minBufferSize;
+		}
+	}
+	
+	private AudioRecord micInput = new AudioRecord(AudioSource.VOICE_RECOGNITION, sampleRate,
 			channel_config, aud_format, bufferSize);
 
 	// recording toggle
@@ -300,7 +314,7 @@ public class MainActivity extends Activity {
     	final int blockSize = bufferSize / 2;
     	short[] bufferRead_short = new short[blockSize];
     	double[] bufferRead = new double[blockSize];
-    	RealDoubleFFT fftInput = new RealDoubleFFT(blockSize);
+    	DoubleFFT_1D fftInput = new DoubleFFT_1D(blockSize);
 
     	micInput.startRecording();
     	
@@ -308,33 +322,110 @@ public class MainActivity extends Activity {
     	{
         	//max index and frequency value
         	double max_val = -1.0;
-        	double max_index = -1.0;
+        	double max_index = 0;
     		int bufferReadLength = micInput.read(bufferRead_short, 0, blockSize);
     		for (int i = 0; i < blockSize && i < bufferReadLength; i++) 
     		{
     			bufferRead[i] = (double) bufferRead_short[i] / 32768.0; // divided by 32768 due to 16 bit PCM
             }
-
-            fftInput.ft(bufferRead);
-            
-            double[] autocor_val = new double[blockSize];
+    		
+            fftInput.realForward(bufferRead);
+            // get fft spectrum
+            double[] spectrum = new double[blockSize];
             for (int i = 1; i < bufferRead.length; i++) 
             {
-            	autocor_val[i] = Math.sqrt(bufferRead[i] * bufferRead[i]);
-            	if (autocor_val[i] > max_val)
+            	spectrum[i] = Math.sqrt(bufferRead[i] * bufferRead[i]);
+            	if (spectrum[i] > max_val && spectrum[i] > (sampleRate / 2000))
             	{
-            		max_val = autocor_val[i];
+            		max_val = spectrum[i];
             		max_index = i;
             	}
             }
             
-            final double freq = (sampleRate * max_index) / (blockSize * 2);
+            final double dom_freq = (sampleRate * max_index) / (blockSize * 2); // dominant frequnecy from fft
+        	LinkedHashMap<Integer, Double> auto_peaks = new LinkedHashMap<Integer, Double>();
+        	double autocorr_freq = 0;
+        	double fund_freq = 0;
+            if (max_index != 0)
+            {
+	            // get inverse of spectrum for autocorrelation
+	            fftInput.realInverse(spectrum,false);
+	            // finding the secondary peak 
+	            boolean decreasing = false;
+	            int loop_count = 1;
+	            
+	            // get the index and values of local maxima
+	            while (loop_count < (spectrum.length / 10)) 
+	            {
+	            	if (spectrum[loop_count] > 0 || spectrum[loop_count - 1] > 0)
+	            	{
+		            	// spectrum is decreasing and it wasn't previously decreasing
+		            	if (spectrum[loop_count] > spectrum[loop_count + 1] && !decreasing)
+		            	{
+		            		auto_peaks.put(loop_count, spectrum[loop_count]);
+		            		decreasing = true;
+		            	}
+		            	// spectrum is increasing and is previously decreasing
+		            	else if (spectrum[loop_count] < spectrum[loop_count + 1] && decreasing)
+		            	{
+		            		decreasing = false;
+		            	}
+	            	}
+	            	loop_count++;
+	            }
+	            
+	            // get the autocorrelation
+	            double ac_max = -1;
+	            int ac_max_index = 0;
+	            double ratio = 100.0;
+	            int index_diff = 0;
+	            
+	            if (!auto_peaks.isEmpty())
+	            {
+		            for(int i: auto_peaks.keySet())
+		            {	
+		            	double temp_ratio = auto_peaks.get(i) / ac_max;	        
+		            	
+		            	if (temp_ratio >= 0.85 && temp_ratio <= 1.15 && temp_ratio < ratio)
+		            	{
+		            		ratio = temp_ratio;
+		            		index_diff = Math.abs(i - ac_max_index);
+		            		ac_max = auto_peaks.get(i);
+		            		ac_max_index = i;
+				            if (index_diff != 0)
+				            {
+				            	autocorr_freq = sampleRate / index_diff;
+				                // get the factor between the dominant frequency and the autocorrelated frequency and get the difference
+				                final double factor_d = dom_freq/autocorr_freq;
+				                final long factor = Math.round(factor_d);
+				                
+				                if (factor != 0 && autocorr_freq <= (1.1*dom_freq))
+				                {
+				                	fund_freq = dom_freq/factor;
+				            		break;
+				                }
+				            }
+		            	}
+		            	else if (auto_peaks.get(i) > ac_max)
+		            	{
+		            		index_diff = 0;
+		            		ratio = 100.0;
+		            		ac_max = auto_peaks.get(i);
+		            		ac_max_index = i;
+		            	}
+		            }
+	            }
+	        }
+            
+            final double ac_freq = autocorr_freq; // frequency from autocorrelation
+            final double freq = fund_freq; //used to display fund_freq
+            
             runOnUiThread(new Runnable() 
             {
                 @Override
                 public void run() 
                 {
-                	txtViewFreq.setText(String.format("%.2f", freq));
+            		txtViewFreq.setText(String.format("Dom:%.2f \n AC: %.2f \n Fund: %.2f", dom_freq, ac_freq, freq));
                 }
             });
     	}
