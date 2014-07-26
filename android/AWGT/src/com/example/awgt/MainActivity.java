@@ -345,19 +345,20 @@ public class MainActivity extends Activity {
             final double dom_freq = (sampleRate * max_index) / (blockSize * 2); // dominant frequnecy from fft
         	LinkedHashMap<Integer, Double> auto_peaks = new LinkedHashMap<Integer, Double>();
         	double autocorr_freq = 0;
-        	double fund_freq = 0;
+        	long fund_freq = 0;
             if (max_index != 0)
             {
 	            // get inverse of spectrum for autocorrelation
 	            fftInput.realInverse(spectrum,false);
+	            
 	            // finding the secondary peak 
 	            boolean decreasing = false;
 	            int loop_count = 1;
-	            
+	            final double threshold = Math.abs(spectrum[0])/2;
 	            // get the index and values of local maxima
 	            while (loop_count < (spectrum.length / 10)) 
 	            {
-	            	if (spectrum[loop_count] > 0 || spectrum[loop_count - 1] > 0)
+	            	if (spectrum[loop_count] > threshold || spectrum[loop_count - 1] > threshold)
 	            	{
 		            	// spectrum is decreasing and it wasn't previously decreasing
 		            	if (spectrum[loop_count] > spectrum[loop_count + 1] && !decreasing)
@@ -401,7 +402,7 @@ public class MainActivity extends Activity {
 				                
 				                if (factor != 0 && autocorr_freq <= (1.1*dom_freq))
 				                {
-				                	fund_freq = dom_freq/factor;
+				                	fund_freq = Math.round(dom_freq/factor);
 				            		break;
 				                }
 				            }
