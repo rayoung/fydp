@@ -19,6 +19,7 @@ import android.media.MediaRecorder.AudioSource;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -329,6 +330,7 @@ public class MainActivity extends Activity {
     			bufferRead[i] = (double) bufferRead_short[i] / 32768.0; // divided by 32768 due to 16 bit PCM
             }
     		
+    		Log.i("Recording Done", String.valueOf(bufferRead[0]));
             fftInput.realForward(bufferRead);
             // get fft spectrum
             double[] spectrum = new double[blockSize];
@@ -354,14 +356,15 @@ public class MainActivity extends Activity {
 	            // finding the secondary peak 
 	            boolean decreasing = false;
 	            int loop_count = 1;
-	            final double threshold = Math.abs(spectrum[0])/2;
+	            final double threshold = Math.abs(spectrum[0])/4;
+	            int increase_count = 0;
 	            // get the index and values of local maxima
 	            while (loop_count < (spectrum.length / 10)) 
 	            {
 	            	if (spectrum[loop_count] > threshold || spectrum[loop_count - 1] > threshold)
 	            	{
 		            	// spectrum is decreasing and it wasn't previously decreasing
-		            	if (spectrum[loop_count] > spectrum[loop_count + 1] && !decreasing)
+		            	if (spectrum[loop_count] > spectrum[loop_count + 1] && !decreasing && increase_count >= 0)
 		            	{
 		            		auto_peaks.put(loop_count, spectrum[loop_count]);
 		            		decreasing = true;
@@ -369,7 +372,13 @@ public class MainActivity extends Activity {
 		            	// spectrum is increasing and is previously decreasing
 		            	else if (spectrum[loop_count] < spectrum[loop_count + 1] && decreasing)
 		            	{
+		            		increase_count = 0;
 		            		decreasing = false;
+		            	}
+		            	// on the increase
+		            	else if (spectrum[loop_count] < spectrum[loop_count + 1] && !decreasing)
+		            	{
+		            		increase_count++;
 		            	}
 	            	}
 	            	loop_count++;
@@ -387,7 +396,7 @@ public class MainActivity extends Activity {
 		            {	
 		            	double temp_ratio = auto_peaks.get(i) / ac_max;	        
 		            	
-		            	if (temp_ratio >= 0.85 && temp_ratio <= 1.15 && temp_ratio < ratio)
+		            	if (temp_ratio >= 0.8 && temp_ratio <= 1.25 && temp_ratio < ratio)
 		            	{
 		            		ratio = temp_ratio;
 		            		index_diff = Math.abs(i - ac_max_index);
@@ -400,7 +409,7 @@ public class MainActivity extends Activity {
 				                final double factor_d = dom_freq/autocorr_freq;
 				                final long factor = Math.round(factor_d);
 				                
-				                if (factor != 0 && autocorr_freq <= (1.1*dom_freq))
+				                if (factor != 0 && autocorr_freq <= (1.1*(dom_freq/factor)))
 				                {
 				                	fund_freq = Math.round(dom_freq/factor);
 				            		break;
@@ -417,6 +426,11 @@ public class MainActivity extends Activity {
 		            }
 	            }
 	        }
+            
+            if (autocorr_freq == 0)
+            {
+            	Log.i("Peaks", auto_peaks.toString());
+            }
             
             final double ac_freq = autocorr_freq; // frequency from autocorrelation
             final double freq = fund_freq; //used to display fund_freq
