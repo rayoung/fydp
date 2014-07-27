@@ -1,5 +1,6 @@
 package com.example.awgt;
 
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Set;
 
@@ -19,6 +20,7 @@ import android.media.MediaRecorder.AudioSource;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -311,7 +313,7 @@ public class MainActivity extends Activity {
     {	
     	final TextView txtViewFreq = (TextView)findViewById(R.id.fullscreen_content); 
     	//storage for micInput
-    	final int blockSize = bufferSize / 2;
+    	final int blockSize = bufferSize / 4;
     	short[] bufferRead_short = new short[blockSize];
     	double[] bufferRead = new double[blockSize];
     	DoubleFFT_1D fftInput = new DoubleFFT_1D(blockSize);
@@ -344,6 +346,10 @@ public class MainActivity extends Activity {
             
             final double dom_freq = (sampleRate * max_index) / (blockSize * 2); // dominant frequnecy from fft
         	LinkedHashMap<Integer, Double> auto_peaks = new LinkedHashMap<Integer, Double>();
+        	// ac_index and ac_peak store max index and max peak of the autocorrelation
+        	int ac_index = 0;
+        	double ac_peak = 0.0;
+        	double threshold = ac_peak * 0.7;
         	double autocorr_freq = 0;
         	long fund_freq = 0;
             if (max_index != 0)
@@ -354,72 +360,94 @@ public class MainActivity extends Activity {
 	            // finding the secondary peak 
 	            boolean decreasing = false;
 	            int loop_count = 1;
-	            final double threshold = Math.abs(spectrum[0])/2;
+	            int increase_count = 0;
+
 	            // get the index and values of local maxima
 	            while (loop_count < (spectrum.length / 10)) 
 	            {
 	            	if (spectrum[loop_count] > threshold || spectrum[loop_count - 1] > threshold)
 	            	{
 		            	// spectrum is decreasing and it wasn't previously decreasing
-		            	if (spectrum[loop_count] > spectrum[loop_count + 1] && !decreasing)
+		            	if (spectrum[loop_count] > spectrum[loop_count + 1] && !decreasing && increase_count >= 0)
 		            	{
 		            		auto_peaks.put(loop_count, spectrum[loop_count]);
+		            		if (spectrum[loop_count] > ac_peak)
+		            		{
+		            			ac_peak = spectrum[loop_count];
+		            			threshold = ac_peak * 0.7;
+		            			ac_index = loop_count;
+		            			
+		            		}
 		            		decreasing = true;
 		            	}
 		            	// spectrum is increasing and is previously decreasing
 		            	else if (spectrum[loop_count] < spectrum[loop_count + 1] && decreasing)
 		            	{
+		            		increase_count = 0;
 		            		decreasing = false;
+		            	}
+		            	// on the increase
+		            	else if (spectrum[loop_count] < spectrum[loop_count + 1] && !decreasing)
+		            	{
+		            		increase_count++;
 		            	}
 	            	}
 	            	loop_count++;
 	            }
 	            
 	            // get the autocorrelation
-	            double ac_max = -1;
-	            int ac_max_index = 0;
-	            double ratio = 100.0;
 	            int index_diff = 0;
+	            // remove dummy peak
+	            auto_peaks.remove(1);
 	            
 	            if (!auto_peaks.isEmpty())
 	            {
-		            for(int i: auto_peaks.keySet())
+	            	Iterator<Integer> iter = auto_peaks.keySet().iterator();
+	            	autoloop:
+            		while(iter.hasNext())
 		            {	
-		            	double temp_ratio = auto_peaks.get(i) / ac_max;	        
-		            	
-		            	if (temp_ratio >= 0.85 && temp_ratio <= 1.15 && temp_ratio < ratio)
-		            	{
-		            		ratio = temp_ratio;
-		            		index_diff = Math.abs(i - ac_max_index);
-		            		ac_max = auto_peaks.get(i);
-		            		ac_max_index = i;
-				            if (index_diff != 0)
-				            {
-				            	autocorr_freq = sampleRate / index_diff;
-				                // get the factor between the dominant frequency and the autocorrelated frequency and get the difference
-				                final double factor_d = dom_freq/autocorr_freq;
-				                final long factor = Math.round(factor_d);
-				                
-				                if (factor != 0 && autocorr_freq <= (1.1*dom_freq))
-				                {
-				                	fund_freq = Math.round(dom_freq/factor);
-				            		break;
-				                }
-				            }
-		            	}
-		            	else if (auto_peaks.get(i) > ac_max)
-		            	{
-		            		index_diff = 0;
-		            		ratio = 100.0;
-		            		ac_max = auto_peaks.get(i);
-		            		ac_max_index = i;
-		            	}
+            			int i = iter.next();
+	            		if (auto_peaks.get(i) >= threshold)
+	            		{
+			            	double temp_ratio = auto_peaks.get(i) / ac_peak;	        
+			            	
+			            	if (temp_ratio >= 0.7)
+			            	{
+			            		index_diff = Math.abs(i - ac_index);
+					            if (index_diff != 0)
+					            {
+					            	autocorr_freq = sampleRate / index_diff;
+					                // get the factor between the dominant frequency and the autocorrelated frequency and get the difference
+					                final double factor_d = dom_freq/autocorr_freq;
+					                final long factor = Math.round(factor_d);
+					                
+					                if (factor != 0 && autocorr_freq <= (1.1*(dom_freq/factor)))
+					                {
+					                	fund_freq = Math.round(dom_freq/factor);
+					            		break autoloop;
+					                }
+					            }
+			            	}
+	            		}
 		            }
 	            }
 	        }
             
+
             final double ac_freq = autocorr_freq; // frequency from autocorrelation
             final double freq = fund_freq; //used to display fund_freq
+                        
+            // debugging purposes
+            if (fund_freq == 0 && !auto_peaks.isEmpty())
+            {
+            	Log.i("Freq", String.format("%.2f,%.2f, %.2f, %.2f", dom_freq, ac_freq, freq, threshold));
+            	Log.i("Peaks Fail", auto_peaks.toString());
+            }
+            else if(fund_freq != 0 && !auto_peaks.isEmpty())
+            {
+            	Log.i("Freq", String.format("%.2f,%.2f, %.2f, %.2f", dom_freq, ac_freq, freq, threshold));
+            	Log.i("Peaks", auto_peaks.toString());
+            }
             
             runOnUiThread(new Runnable() 
             {
