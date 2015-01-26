@@ -1,22 +1,9 @@
 package com.example.awgt;
 
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.Set;
-
-import org.jtransforms.fft.DoubleFFT_1D;
-
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.media.AudioFormat;
-import android.media.AudioRecord;
-import android.media.MediaRecorder.AudioSource;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -29,7 +16,15 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
+import be.tarsos.dsp.AudioDispatcher;
+import be.tarsos.dsp.AudioEvent;
+import be.tarsos.dsp.io.android.AudioDispatcherFactory;
+import be.tarsos.dsp.pitch.PitchDetectionHandler;
+import be.tarsos.dsp.pitch.PitchDetectionResult;
+import be.tarsos.dsp.pitch.PitchProcessor;
+import be.tarsos.dsp.pitch.PitchProcessor.PitchEstimationAlgorithm;
 
+import com.QSK.helloble.HelloBle;
 import com.example.awgt.util.SystemUiHider;
 
 /**
@@ -42,43 +37,12 @@ public class MainActivity extends Activity {
 	// start recording button
 	private Button btnStartRecording;
 
-	// get phone's bluetooth adapter
-	private final BluetoothAdapter BA = BluetoothAdapter.getDefaultAdapter();
-
-	// get initial paired devices
-	final Set<BluetoothDevice> pairedDevices = BA.getBondedDevices();
-
-	// create variables for audio recording
-	private final int channel_config = AudioFormat.CHANNEL_IN_MONO;
-	private final int aud_format = AudioFormat.ENCODING_PCM_16BIT;
-	private final int sampleRate = 44100;
-	private final int minBufferSize = AudioRecord.getMinBufferSize(sampleRate,
-			channel_config, aud_format);
-	private int bufferSize;
-	{
-		if (sampleRate > minBufferSize)
-		{
-			bufferSize = sampleRate;
-		}
-		else
-		{
-			bufferSize = ((int)(minBufferSize / sampleRate)) * minBufferSize;
-		}
-	}
-	
-	private AudioRecord micInput = new AudioRecord(AudioSource.VOICE_RECOGNITION, sampleRate,
-			channel_config, aud_format, bufferSize);
-
 	// recording toggle
 	private boolean recording = false;
-
-	// recording thread
-	Runnable rec_thread = new Runnable() {
-		public void run() {
-			recording_loop();
-		}
-	};
-
+	
+	// bluetooth adapter
+	private final BluetoothAdapter BA = BluetoothAdapter.getDefaultAdapter();
+	
 	/**
 	 * Whether or not the system UI should be auto-hidden after
 	 * {@link #AUTO_HIDE_DELAY_MILLIS} milliseconds.
@@ -106,7 +70,29 @@ public class MainActivity extends Activity {
 	 * The instance of the {@link SystemUiHider} for this activity.
 	 */
 	private SystemUiHider mSystemUiHider;
-
+	
+	AudioDispatcher dispatcher;
+	PitchProcessor pitch = new PitchProcessor(PitchEstimationAlgorithm.YIN, 22050, 1024, new PitchDetectionHandler() 
+	{
+		@Override
+		public void handlePitch(PitchDetectionResult pitchDetectionResult,
+				AudioEvent audioEvent) {
+			float pitchInHz = pitchDetectionResult.getPitch();
+			if (pitchInHz < 0)
+			{
+				pitchInHz = 0;
+			}
+			final float freq = pitchInHz;
+			runOnUiThread(new Runnable() {
+			     @Override
+			     public void run() {
+			    	TextView text = (TextView) findViewById(R.id.fullscreen_content);
+					text.setText(String.format("%.2f", freq));
+			    }
+			});
+		}
+	});
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -154,11 +140,6 @@ public class MainActivity extends Activity {
 							controlsView.setVisibility(visible ? View.VISIBLE
 									: View.GONE);
 						}
-
-						if (visible && AUTO_HIDE) {
-							// Schedule a hide().
-							delayedHide(AUTO_HIDE_DELAY_MILLIS);
-						}
 					}
 				});
 
@@ -178,25 +159,9 @@ public class MainActivity extends Activity {
 		// operations to prevent the jarring behavior of controls going away
 		// while interacting with the UI.
 		btnStartRecording.setOnTouchListener(mDelayHideTouchListener);
-
-		// initially disable the start recording button depending on bonded
-		// devices
-		if (pairedDevices.isEmpty() || pairedDevices == null) {
-			findViewById(R.id.send_data).setEnabled(false);
-		}
-
-		// set up broadcast receiver to change start recording button when
-		// bluetooth connects
-		IntentFilter filterConnected = new IntentFilter(
-				BluetoothDevice.ACTION_ACL_CONNECTED);
-		IntentFilter filterDisconnected = new IntentFilter(
-				BluetoothDevice.ACTION_ACL_DISCONNECTED);
-		IntentFilter filterDisconnecting = new IntentFilter(
-				BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED);
-
-		this.registerReceiver(btReceiver, filterConnected);
-		this.registerReceiver(btReceiver, filterDisconnected);
-		this.registerReceiver(btReceiver, filterDisconnecting);
+		
+		dispatcher = AudioDispatcherFactory.fromDefaultMicrophone(22050,1024,0);	
+		findViewById(R.id.send_data).setEnabled(false);
 	}
 
 	@Override
@@ -264,245 +229,60 @@ public class MainActivity extends Activity {
 		}
 	}
 
-	private void enableBluetooth() {
-		Intent bluetooth = new Intent(
-				android.provider.Settings.ACTION_BLUETOOTH_SETTINGS);
-		startActivity(bluetooth);
+	@Override
+	public void onPause() 
+	{
+		stopRecording();
+		super.onPause();
 	}
 
-	// create bluetooth broadcast receiver to check when there is a change to
-	// bluetooth
-	private final BroadcastReceiver btReceiver = new BroadcastReceiver() {
-		@Override
-		public void onReceive(Context context, Intent intent) {
-			final String action = intent.getAction();
-			// enable mic button
-			Button btn_enable_send = (Button) findViewById(R.id.send_data);
+   @Override
+    public void onResume() {
+        super.onResume();
+        Log.i("MAIN", "+ ON RESUME+");
+    }
 
-			// disable start recording button if there is no bluetooth adapter
-			// or if it is not connected
-			if (action.equals(BluetoothDevice.ACTION_ACL_CONNECTED)) {
-				btn_enable_send.setEnabled(true);
-			} else {
-				btn_enable_send.setEnabled(false);
-			}
-		}
-	};
-
-	public void startRecording(View view) {
-		if (recording == true) {
+	private void enableBluetooth() 
+	{
+		if (recording == true) 
+		{
 			recording = false;
 			btnStartRecording.setText(R.string.start_recording);
-			micInput.stop();
-			Toast.makeText(getApplicationContext(), "done", Toast.LENGTH_LONG)
-					.show();
-		} else {
-			// check if audio recorder is working
-			if (micInput.getState() != AudioRecord.STATE_INITIALIZED)
-				Toast.makeText(getApplicationContext(), R.string.error_audio,
-						Toast.LENGTH_LONG).show();
-			else {
-				recording = true;
-				btnStartRecording.setText(R.string.stop_recording);
-				new Thread(rec_thread).start();
-			}
+			dispatcher.removeAudioProcessor(pitch);
+		} 
+		Intent copy = new Intent(this, HelloBle.class);
+		startActivity(copy);
+	}
+	
+	public void toggleRecording(View view)
+	{
+		if (recording == true) 
+		{
+			stopRecording();
+		}
+		else
+		{
+			startRecording();
 		}
 	}
-
-	private void recording_loop()
-    {	
-    	final TextView txtViewFreq = (TextView)findViewById(R.id.fullscreen_content); 
-    	//storage for micInput
-    	final int blockSize = bufferSize / 4;
-    	short[] bufferRead_short = new short[blockSize];
-    	double[] bufferRead = new double[blockSize];
-    	DoubleFFT_1D fftInput = new DoubleFFT_1D(blockSize);
-
-    	micInput.startRecording();
-    	
-    	while (recording)
-    	{
-        	//max index and frequency value
-        	double max_val = -1.0;
-        	double max_index = 0;
-    		int bufferReadLength = micInput.read(bufferRead_short, 0, blockSize);
-    		for (int i = 0; i < blockSize && i < bufferReadLength; i++) 
-    		{
-    			bufferRead[i] = (double) bufferRead_short[i] / 32768.0; // divided by 32768 due to 16 bit PCM
-            }
-    		
-    		Log.i("Recording Done", String.valueOf(bufferRead[0]));
-            fftInput.realForward(bufferRead);
-            // get fft spectrum
-            double[] spectrum = new double[blockSize];
-            for (int i = 1; i < bufferRead.length; i++) 
-            {
-            	spectrum[i] = Math.sqrt(bufferRead[i] * bufferRead[i]);
-            	if (spectrum[i] > max_val && spectrum[i] > (sampleRate / 2000))
-            	{
-            		max_val = spectrum[i];
-            		max_index = i;
-            	}
-            }
-            
-            final double dom_freq = (sampleRate * max_index) / (blockSize * 2); // dominant frequnecy from fft
-        	LinkedHashMap<Integer, Double> auto_peaks = new LinkedHashMap<Integer, Double>();
-        	// ac_index and ac_peak store max index and max peak of the autocorrelation
-        	int ac_index = 0;
-        	double ac_peak = 0.0;
-        	double threshold = ac_peak * 0.7;
-        	double autocorr_freq = 0;
-        	long fund_freq = 0;
-            if (max_index != 0)
-            {
-	            // get inverse of spectrum for autocorrelation
-	            fftInput.realInverse(spectrum,false);
-	            
-	            // finding the secondary peak 
-	            boolean decreasing = false;
-	            int loop_count = 1;
-<<<<<<< HEAD
-	            final double threshold = Math.abs(spectrum[0])/4;
-	            int increase_count = 0;
-=======
-	            int increase_count = 0;
-
->>>>>>> c282dbdebe436b798bf5e55b5384d12d4e022307
-	            // get the index and values of local maxima
-	            while (loop_count < (spectrum.length / 10)) 
-	            {
-	            	if (spectrum[loop_count] > threshold || spectrum[loop_count - 1] > threshold)
-	            	{
-		            	// spectrum is decreasing and it wasn't previously decreasing
-		            	if (spectrum[loop_count] > spectrum[loop_count + 1] && !decreasing && increase_count >= 0)
-		            	{
-		            		auto_peaks.put(loop_count, spectrum[loop_count]);
-		            		if (spectrum[loop_count] > ac_peak)
-		            		{
-		            			ac_peak = spectrum[loop_count];
-		            			threshold = ac_peak * 0.7;
-		            			ac_index = loop_count;
-		            			
-		            		}
-		            		decreasing = true;
-		            	}
-		            	// spectrum is increasing and is previously decreasing
-		            	else if (spectrum[loop_count] < spectrum[loop_count + 1] && decreasing)
-		            	{
-		            		increase_count = 0;
-		            		decreasing = false;
-		            	}
-		            	// on the increase
-		            	else if (spectrum[loop_count] < spectrum[loop_count + 1] && !decreasing)
-		            	{
-		            		increase_count++;
-		            	}
-	            	}
-	            	loop_count++;
-	            }
-	            
-	            // get the autocorrelation
-	            int index_diff = 0;
-	            // remove dummy peak
-	            auto_peaks.remove(1);
-	            
-	            if (!auto_peaks.isEmpty())
-	            {
-	            	Iterator<Integer> iter = auto_peaks.keySet().iterator();
-	            	autoloop:
-            		while(iter.hasNext())
-		            {	
-<<<<<<< HEAD
-		            	double temp_ratio = auto_peaks.get(i) / ac_max;	        
-		            	
-		            	if (temp_ratio >= 0.8 && temp_ratio <= 1.25 && temp_ratio < ratio)
-		            	{
-		            		ratio = temp_ratio;
-		            		index_diff = Math.abs(i - ac_max_index);
-		            		ac_max = auto_peaks.get(i);
-		            		ac_max_index = i;
-				            if (index_diff != 0)
-				            {
-				            	autocorr_freq = sampleRate / index_diff;
-				                // get the factor between the dominant frequency and the autocorrelated frequency and get the difference
-				                final double factor_d = dom_freq/autocorr_freq;
-				                final long factor = Math.round(factor_d);
-				                
-				                if (factor != 0 && autocorr_freq <= (1.1*(dom_freq/factor)))
-				                {
-				                	fund_freq = Math.round(dom_freq/factor);
-				            		break;
-				                }
-				            }
-		            	}
-		            	else if (auto_peaks.get(i) > ac_max)
-		            	{
-		            		index_diff = 0;
-		            		ratio = 100.0;
-		            		ac_max = auto_peaks.get(i);
-		            		ac_max_index = i;
-		            	}
-=======
-            			int i = iter.next();
-	            		if (auto_peaks.get(i) >= threshold)
-	            		{
-			            	double temp_ratio = auto_peaks.get(i) / ac_peak;	        
-			            	
-			            	if (temp_ratio >= 0.7)
-			            	{
-			            		index_diff = Math.abs(i - ac_index);
-					            if (index_diff != 0)
-					            {
-					            	autocorr_freq = sampleRate / index_diff;
-					                // get the factor between the dominant frequency and the autocorrelated frequency and get the difference
-					                final double factor_d = dom_freq/autocorr_freq;
-					                final long factor = Math.round(factor_d);
-					                
-					                if (factor != 0 && autocorr_freq <= (1.1*(dom_freq/factor)))
-					                {
-					                	fund_freq = Math.round(dom_freq/factor);
-					            		break autoloop;
-					                }
-					            }
-			            	}
-	            		}
->>>>>>> c282dbdebe436b798bf5e55b5384d12d4e022307
-		            }
-	            }
-	        }
-            
-<<<<<<< HEAD
-            if (autocorr_freq == 0)
-            {
-            	Log.i("Peaks", auto_peaks.toString());
-            }
-            
-=======
-
->>>>>>> c282dbdebe436b798bf5e55b5384d12d4e022307
-            final double ac_freq = autocorr_freq; // frequency from autocorrelation
-            final double freq = fund_freq; //used to display fund_freq
-                        
-            // debugging purposes
-            if (fund_freq == 0 && !auto_peaks.isEmpty())
-            {
-            	Log.i("Freq", String.format("%.2f,%.2f, %.2f, %.2f", dom_freq, ac_freq, freq, threshold));
-            	Log.i("Peaks Fail", auto_peaks.toString());
-            }
-            else if(fund_freq != 0 && !auto_peaks.isEmpty())
-            {
-            	Log.i("Freq", String.format("%.2f,%.2f, %.2f, %.2f", dom_freq, ac_freq, freq, threshold));
-            	Log.i("Peaks", auto_peaks.toString());
-            }
-            
-            runOnUiThread(new Runnable() 
-            {
-                @Override
-                public void run() 
-                {
-            		txtViewFreq.setText(String.format("Dom:%.2f \n AC: %.2f \n Fund: %.2f", dom_freq, ac_freq, freq));
-                }
-            });
-    	}
-    }
+	
+	private void stopRecording()
+	{
+		recording = false;
+		btnStartRecording.setText(R.string.start_recording);
+		dispatcher.removeAudioProcessor(pitch);
+		Toast.makeText(getApplicationContext(), "done", Toast.LENGTH_LONG)
+				.show();
+			
+	}
+	private void startRecording() 
+	{
+		recording = true;
+		btnStartRecording.setText(R.string.stop_recording);
+		dispatcher.addAudioProcessor(pitch);
+		new Thread(dispatcher,"Audio Dispatcher").start();
+	}
 }
+
+
+

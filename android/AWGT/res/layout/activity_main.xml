@@ -60,7 +60,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:background="@color/black_overlay"
-                android:onClick="startRecording"
+                android:onClick="toggleRecording"
                 android:text="@string/send_data" />
             
         </LinearLayout>
