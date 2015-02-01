@@ -50,7 +50,7 @@
                 android:layout_marginBottom="@dimen/abc_action_bar_icon_vertical_padding"
                 android:layout_weight="1"
                 android:background="@color/black_overlay"
-                android:onClick="startRecording"
+                android:onClick="toggleRecording"
                 android:text="@string/start_recording" />
             
             <Button

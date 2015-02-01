@@ -283,6 +283,3 @@ public class MainActivity extends Activity {
 		new Thread(dispatcher,"Audio Dispatcher").start();
 	}
 }
-
-
-
