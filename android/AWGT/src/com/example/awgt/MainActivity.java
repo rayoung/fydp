@@ -43,6 +43,9 @@ public class MainActivity extends Activity {
 	// bluetooth adapter
 	private final BluetoothAdapter BA = BluetoothAdapter.getDefaultAdapter();
 	
+	private final int samplingRate = 22050;
+	private final int blockSize = 1024;
+	
 	/**
 	 * Whether or not the system UI should be auto-hidden after
 	 * {@link #AUTO_HIDE_DELAY_MILLIS} milliseconds.
@@ -72,12 +75,13 @@ public class MainActivity extends Activity {
 	private SystemUiHider mSystemUiHider;
 	
 	AudioDispatcher dispatcher;
-	PitchProcessor pitch = new PitchProcessor(PitchEstimationAlgorithm.YIN, 22050, 1024, new PitchDetectionHandler() 
+	PitchProcessor pitch = new PitchProcessor(PitchEstimationAlgorithm.YIN, samplingRate, blockSize, new PitchDetectionHandler() 
 	{
 		@Override
 		public void handlePitch(PitchDetectionResult pitchDetectionResult,
 				AudioEvent audioEvent) {
 			float pitchInHz = pitchDetectionResult.getPitch();
+			// pitchDetectionResult.getPitch() defaults to -1, so if it does not find a pitch
 			if (pitchInHz < 0)
 			{
 				pitchInHz = 0;
@@ -160,7 +164,7 @@ public class MainActivity extends Activity {
 		// while interacting with the UI.
 		btnStartRecording.setOnTouchListener(mDelayHideTouchListener);
 		
-		dispatcher = AudioDispatcherFactory.fromDefaultMicrophone(22050,1024,0);	
+		dispatcher = AudioDispatcherFactory.fromDefaultMicrophone(samplingRate,blockSize,0);	
 		findViewById(R.id.send_data).setEnabled(false);
 	}
 
