@@ -43,6 +43,10 @@ public class MainActivity extends Activity {
 	// bluetooth adapter
 	private final BluetoothAdapter BA = BluetoothAdapter.getDefaultAdapter();
 	
+	// parameters
+	private final int samplingFreq = 44100;
+	private final int bufferSize = 2048;
+	
 	/**
 	 * Whether or not the system UI should be auto-hidden after
 	 * {@link #AUTO_HIDE_DELAY_MILLIS} milliseconds.
@@ -72,12 +76,19 @@ public class MainActivity extends Activity {
 	private SystemUiHider mSystemUiHider;
 	
 	AudioDispatcher dispatcher;
-	PitchProcessor pitch = new PitchProcessor(PitchEstimationAlgorithm.YIN, 22050, 1024, new PitchDetectionHandler() 
+	PitchProcessor pitch = new PitchProcessor(PitchEstimationAlgorithm.YIN,
+											  samplingFreq,
+											  bufferSize, 
+											  new PitchDetectionHandler() 
 	{
 		@Override
 		public void handlePitch(PitchDetectionResult pitchDetectionResult,
 				AudioEvent audioEvent) {
 			float pitchInHz = pitchDetectionResult.getPitch();
+			float prob = pitchDetectionResult.getProbability();
+			
+			Log.i("sample", String.format("f = %f, p = %f", pitchInHz, prob));
+			
 			if (pitchInHz < 0)
 			{
 				pitchInHz = 0;
@@ -160,7 +171,8 @@ public class MainActivity extends Activity {
 		// while interacting with the UI.
 		btnStartRecording.setOnTouchListener(mDelayHideTouchListener);
 		
-		dispatcher = AudioDispatcherFactory.fromDefaultMicrophone(22050,1024,0);	
+		dispatcher = AudioDispatcherFactory.fromDefaultMicrophone(samplingFreq, bufferSize, bufferSize/4);
+		new Thread(dispatcher, "Audio Dispatcher").start();
 		findViewById(R.id.send_data).setEnabled(false);
 	}
 
@@ -271,15 +283,12 @@ public class MainActivity extends Activity {
 		recording = false;
 		btnStartRecording.setText(R.string.start_recording);
 		dispatcher.removeAudioProcessor(pitch);
-		Toast.makeText(getApplicationContext(), "done", Toast.LENGTH_LONG)
-				.show();
-			
+		//Toast.makeText(getApplicationContext(), "done", Toast.LENGTH_LONG).show();
 	}
 	private void startRecording() 
 	{
 		recording = true;
 		btnStartRecording.setText(R.string.stop_recording);
 		dispatcher.addAudioProcessor(pitch);
-		new Thread(dispatcher,"Audio Dispatcher").start();
 	}
 }
