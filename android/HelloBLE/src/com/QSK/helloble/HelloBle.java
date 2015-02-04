@@ -2,6 +2,14 @@ package com.QSK.helloble;
 
 import java.util.List;
 
+import be.tarsos.dsp.AudioDispatcher;
+import be.tarsos.dsp.AudioEvent;
+import be.tarsos.dsp.io.android.AudioDispatcherFactory;
+import be.tarsos.dsp.pitch.PitchDetectionHandler;
+import be.tarsos.dsp.pitch.PitchDetectionResult;
+import be.tarsos.dsp.pitch.PitchProcessor;
+import be.tarsos.dsp.pitch.PitchProcessor.PitchEstimationAlgorithm;
+
 import com.QSK.bleProfiles.HelloBLEService;
 
 import android.os.Bundle;
@@ -21,7 +29,6 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.View;
 import android.widget.Button;
-import android.widget.RadioGroup;
 import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -30,25 +37,70 @@ import android.widget.ToggleButton;
 
 
 public class HelloBle extends Activity {
-
+	// bluetooth request codes for initializing connection
 	private static final int REQUEST_ENABLE_BT = 1;
 	private static final int REQUEST_SELECT_DEVICE = 0;
 		
 	private static String TAG = HelloBle.class.getSimpleName();
 	
+	// bluetooth datatypes
+	BluetoothAdapter mBtAdapter = null;
 	private HelloBLEService mBluetoothLeService;
 	private BluetoothDevice mDevice = null;
 	private List<BluetoothGattService> mGattServices = null;
 	private BluetoothGattCharacteristic mGattCharacteristic = null;
 	private boolean mConnected = false;
-	private byte motorDirection = 0;
-	private byte motorDuty = 0;
-	BluetoothAdapter mBtAdapter = null;
+		
+	// motor parameters
+	private byte motorDirection = 0;	// 0 - CW, 1 - CCW
+	private byte motorDuty = 0;			// 0-255
 	
+	// recording parameters
+	private final int samplingFreq = 44100;
+	private final int bufferSize = 2048;
+	
+	AudioDispatcher dispatcher;
+	PitchProcessor pitch = new PitchProcessor(PitchEstimationAlgorithm.YIN,
+											  samplingFreq,
+											  bufferSize, 
+											  new PitchDetectionHandler() 
+	{
+		@Override
+		public void handlePitch(PitchDetectionResult pitchDetectionResult, AudioEvent audioEvent) {
+			float pitchInHz = pitchDetectionResult.getPitch();
+			float prob = pitchDetectionResult.getProbability();
+			
+			Log.i("sample", String.format("f = %f, p = %f", pitchInHz, prob));
+			
+			if (pitchInHz < 0)
+			{
+				pitchInHz = 0;
+			}
+			final float freq = pitchInHz;
+			runOnUiThread(new Runnable() {
+			     @Override
+			     public void run() {
+			    	TextView text = (TextView) findViewById(R.id.textView_freq);
+					text.setText(String.format("%.2f", freq));
+			    }
+			});
+		}
+	});
+	
+	private final void recordAudio(boolean start) {
+		if (start) {
+			dispatcher.addAudioProcessor(pitch);
+		}
+		else {
+			dispatcher.removeAudioProcessor(pitch);
+		}
+	}
+	
+	// BLE functions	
 	private final void SetMotorVelocity() {
     	if (mBluetoothLeService != null && mGattCharacteristic != null) {
     		byte[] data = new byte[2];
-    		data[0] = motorDirection;	// cw
+    		data[0] = motorDirection;
     		data[1] = motorDuty;	// 8-bit duty cycle
     		mGattCharacteristic.setValue(data);
     		mBluetoothLeService.writeCharacteristic(mGattCharacteristic);
@@ -90,72 +142,6 @@ public class HelloBle extends Activity {
         return intentFilter;
     }
     
-	void InitUIHandlers()
-	{		
-		// Select Device
-		((Button)findViewById(R.id.button_selectdevice)).setOnClickListener(new View.OnClickListener() {
-	        public void onClick(View v) {
-	            Intent newIntent = new Intent(HelloBle.this, DeviceListActivity.class);
-	            startActivityForResult(newIntent, REQUEST_SELECT_DEVICE);
-	        }
-	    });
-		
-		((SeekBar)findViewById(R.id.seekBar_motor)).setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
- 
-			public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser){
-				motorDuty = (byte)progress;
-				SetMotorVelocity();
-			}
- 
-			public void onStartTrackingTouch(SeekBar seekBar) {				
-				// TODO Auto-generated method stub
-			}
- 
-			public void onStopTrackingTouch(SeekBar seekBar) {
-				// TODO Auto-generated method stub		
-			}
-		});
-		
-		// checked means CCW, unchecked means CW
-		((ToggleButton)findViewById(R.id.toggleButton_direction)).setOnClickListener(new View.OnClickListener() {
-			
-			@Override
-			public void onClick(View v) {
-				motorDirection = ((ToggleButton)v).isChecked() ? (byte)1 : (byte)0;
-				SetMotorVelocity();
-			}
-		});
-	}
-	
-	@Override
-	protected void onCreate(Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_hello_ble);
-		
-		InitUIHandlers();
-		
-		/* Ensure Bluetooth is enabled */
-		mBtAdapter = BluetoothAdapter.getDefaultAdapter();
-		if (mBtAdapter == null) {
-			Toast.makeText(this, "Bluetooth is not available - exiting...",
-					Toast.LENGTH_LONG).show();
-			finish();
-			return;
-		}
-		
-		if (!mBtAdapter.isEnabled()) {
-            Intent enableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            startActivityForResult(enableIntent, REQUEST_ENABLE_BT);
-        } else {
-
-        }
-				
-		setUiState();
-		
-        Intent gattServiceIntent = new Intent(this, HelloBLEService.class);
-        bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
-	}
-	
     // Handles various events fired by the Service.
     // ACTION_GATT_CONNECTED: connected to a GATT server.
     // ACTION_GATT_DISCONNECTED: disconnected from a GATT server.
@@ -191,6 +177,97 @@ public class HelloBle extends Activity {
             }
         }
     };
+    
+    
+    // UI functions
+	void InitUIHandlers()
+	{		
+		// Select Device
+		((Button)findViewById(R.id.button_selectdevice)).setOnClickListener(new View.OnClickListener() {
+	        public void onClick(View v) {
+	            Intent newIntent = new Intent(HelloBle.this, DeviceListActivity.class);
+	            startActivityForResult(newIntent, REQUEST_SELECT_DEVICE);
+	        }
+	    });
+		
+		((SeekBar)findViewById(R.id.seekBar_motor)).setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
+ 
+			public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser){
+				motorDuty = (byte)progress;
+				SetMotorVelocity();
+			}
+ 
+			public void onStartTrackingTouch(SeekBar seekBar) {				
+				// TODO Auto-generated method stub
+			}
+ 
+			public void onStopTrackingTouch(SeekBar seekBar) {
+				// TODO Auto-generated method stub		
+			}
+		});
+		
+		// checked means CCW, unchecked means CW
+		((ToggleButton)findViewById(R.id.toggleButton_direction)).setOnClickListener(new View.OnClickListener() {	
+			@Override
+			public void onClick(View v) {
+				motorDirection = ((ToggleButton)v).isChecked() ? (byte)1 : (byte)0;
+				SetMotorVelocity();
+			}
+		});
+		
+		// Record
+		((Button)findViewById(R.id.toggleButton_record)).setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				boolean startRecording =((ToggleButton)v).isChecked();
+				recordAudio(startRecording);
+			}
+	    });
+	}
+	
+	private void setUiState() {
+		((Button)findViewById(R.id.button_selectdevice)).setEnabled(!mConnected);
+		
+    	if (mDevice != null) {
+    		((TextView) findViewById(R.id.deviceName)).setText(mDevice.getName());
+    	}
+
+    	int res = (mConnected) ? R.string.connected : R.string.disconnected;
+    	((TextView) findViewById(R.id.statusName)).setText(res);
+    }
+	
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_hello_ble);
+		
+		InitUIHandlers();
+		
+		/* Ensure Bluetooth is enabled */
+		mBtAdapter = BluetoothAdapter.getDefaultAdapter();
+		if (mBtAdapter == null) {
+			Toast.makeText(this, "Bluetooth is not available - exiting...",
+					Toast.LENGTH_LONG).show();
+			finish();
+			return;
+		}
+		
+		if (!mBtAdapter.isEnabled()) {
+            Intent enableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            startActivityForResult(enableIntent, REQUEST_ENABLE_BT);
+        } else {
+
+        }
+				
+		setUiState();
+		
+        Intent gattServiceIntent = new Intent(this, HelloBLEService.class);
+        bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
+        
+        // init audio dispatcher
+		dispatcher = AudioDispatcherFactory.fromDefaultMicrophone(samplingFreq, bufferSize, bufferSize/4);
+		new Thread(dispatcher, "Audio Dispatcher").start();
+	}
 	
     @Override
     protected void onResume() {
@@ -208,6 +285,7 @@ public class HelloBle extends Activity {
     protected void onPause() {
         super.onPause();
         unregisterReceiver(mGattUpdateReceiver);
+        recordAudio(false);
     }
     
 	@Override
@@ -240,22 +318,12 @@ public class HelloBle extends Activity {
 		getMenuInflater().inflate(R.menu.activity_hello_ble, menu);
 		return true;
 	}
-	
-	private void setUiState() {
-		((Button)findViewById(R.id.button_selectdevice)).setEnabled(!mConnected);
-		
-    	if (mDevice != null) {
-    		((TextView) findViewById(R.id.deviceName)).setText(mDevice.getName());
-    	}
-
-    	int res = (mConnected) ? R.string.connected : R.string.disconnected;
-    	((TextView) findViewById(R.id.statusName)).setText(res);
-    }
     
     @Override
     public void onDestroy() {
         unbindService(mServiceConnection);
         mBluetoothLeService = null;
+        dispatcher.stop();
     	super.onDestroy();
     }
 }

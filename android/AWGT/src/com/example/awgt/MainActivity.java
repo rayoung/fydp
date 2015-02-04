@@ -254,6 +254,12 @@ public class MainActivity extends Activity {
         Log.i("MAIN", "+ ON RESUME+");
     }
 
+   	@Override
+   	public void onDestroy() {
+   		dispatcher.stop();
+   		super.onDestroy();
+   	}
+   
 	private void enableBluetooth() 
 	{
 		if (recording == true) 
