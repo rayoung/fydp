@@ -8,6 +8,9 @@
 package com.QSK.helloble;
 
 public final class R {
+    public static final class array {
+        public static final int freqs_array=0x7f050000;
+    }
     public static final class attr {
     }
     public static final class drawable {
@@ -15,26 +18,27 @@ public final class R {
         public static final int ic_launcher=0x7f020001;
     }
     public static final class id {
-        public static final int about=0x7f07000f;
-        public static final int address=0x7f07000d;
-        public static final int btn_cancel=0x7f070012;
-        public static final int button_selectdevice=0x7f070004;
-        public static final int deviceLabel=0x7f070000;
-        public static final int deviceName=0x7f070001;
-        public static final int empty=0x7f070011;
-        public static final int menu_settings=0x7f070013;
-        public static final int name=0x7f07000c;
-        public static final int new_devices=0x7f070010;
-        public static final int seekBar_motor=0x7f070008;
-        public static final int statusLabel=0x7f070002;
-        public static final int statusName=0x7f070003;
-        public static final int textView_direction=0x7f070005;
-        public static final int textView_freq=0x7f07000b;
-        public static final int textView_recording=0x7f070009;
-        public static final int textView_speed=0x7f070007;
-        public static final int title_devices=0x7f07000e;
-        public static final int toggleButton_direction=0x7f070006;
-        public static final int toggleButton_record=0x7f07000a;
+        public static final int about=0x7f080010;
+        public static final int address=0x7f08000e;
+        public static final int btn_cancel=0x7f080013;
+        public static final int button_selectdevice=0x7f080004;
+        public static final int deviceLabel=0x7f080000;
+        public static final int deviceName=0x7f080001;
+        public static final int empty=0x7f080012;
+        public static final int menu_settings=0x7f080014;
+        public static final int name=0x7f08000d;
+        public static final int new_devices=0x7f080011;
+        public static final int seekBar_motor=0x7f080008;
+        public static final int spinner_freq=0x7f080009;
+        public static final int statusLabel=0x7f080002;
+        public static final int statusName=0x7f080003;
+        public static final int textView_direction=0x7f080005;
+        public static final int textView_freq=0x7f08000c;
+        public static final int textView_recording=0x7f08000a;
+        public static final int textView_speed=0x7f080007;
+        public static final int title_devices=0x7f08000f;
+        public static final int toggleButton_direction=0x7f080006;
+        public static final int toggleButton_record=0x7f08000b;
     }
     public static final class layout {
         public static final int activity_hello_ble=0x7f030000;
@@ -42,7 +46,7 @@ public final class R {
         public static final int device_list=0x7f030002;
     }
     public static final class menu {
-        public static final int activity_hello_ble=0x7f060000;
+        public static final int activity_hello_ble=0x7f070000;
     }
     public static final class string {
         public static final int alert_level=0x7f040004;
@@ -84,10 +88,10 @@ public final class R {
     
  API 14 theme customizations can go here. 
          */
-        public static final int AppBaseTheme=0x7f050000;
+        public static final int AppBaseTheme=0x7f060000;
         /**  Application theme. 
  All customizations that are NOT specific to a particular API-level can go here. 
          */
-        public static final int AppTheme=0x7f050001;
+        public static final int AppTheme=0x7f060001;
     }
 }

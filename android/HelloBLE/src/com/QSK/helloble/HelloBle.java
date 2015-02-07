@@ -1,5 +1,7 @@
 package com.QSK.helloble;
 
+import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 
 import be.tarsos.dsp.AudioDispatcher;
@@ -34,6 +36,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.SeekBar;
 import android.widget.ToggleButton;
+import android.widget.Spinner;
 
 
 public class HelloBle extends Activity {
@@ -58,6 +61,11 @@ public class HelloBle extends Activity {
 	// recording parameters
 	private final int samplingFreq = 44100;
 	private final int bufferSize = 2048;
+	private LinkedList<Float> freqFilter = new LinkedList<Float>();
+	
+	// controller parameters
+	private int k = 16;
+	private float refFreq;
 	
 	AudioDispatcher dispatcher;
 	PitchProcessor pitch = new PitchProcessor(PitchEstimationAlgorithm.YIN,
@@ -68,42 +76,74 @@ public class HelloBle extends Activity {
 		@Override
 		public void handlePitch(PitchDetectionResult pitchDetectionResult, AudioEvent audioEvent) {
 			float pitchInHz = pitchDetectionResult.getPitch();
-			float prob = pitchDetectionResult.getProbability();
 			
-			Log.i("sample", String.format("f = %f, p = %f", pitchInHz, prob));
+			//Log.i("sample", String.format("f = %f", pitchInHz));
 			
-			if (pitchInHz < 0)
-			{
-				pitchInHz = 0;
+			// filter out samples where pitch wasn't detected
+			if (pitchInHz != -1) {
+				pitchInHz = (pitchInHz > 1.8 * refFreq) ? pitchInHz / 2 : pitchInHz;	// filter overtones
+				pitchInHz = (pitchInHz < 0.8 * refFreq) ? pitchInHz * 2 : pitchInHz;	// filter undertones
+				
+				// add sample to median filter
+				freqFilter.add(Float.valueOf(pitchInHz));
+				
+				if (freqFilter.size() == 10) {
+					freqFilter.removeFirst();
+					
+					// calculate median
+					LinkedList<Float> sorted = new LinkedList<Float>(freqFilter);
+					Collections.sort(sorted);
+					float median = sorted.get(4).floatValue();
+					
+					float e = refFreq - median;
+					byte ccw = (e < 0) ? (byte)1 : 0;
+					Log.i("median", String.format("m = %f, e = %f, ccw = %d", median, e, ccw));
+
+					// check if guitar is tuned
+					if (Math.abs(refFreq - median) < 1) {
+						recordAudio(false);
+						return;
+					}
+					
+					//float e = k * Math.min(Math.abs(refFreq - median), Math.abs(refFreq - median / 2));
+					e = k * Math.abs(e);
+					byte u = (e > 255) ? (byte)255 : (byte)e;	// saturate output
+
+					controlMotor(ccw, u);
+				}
 			}
-			final float freq = pitchInHz;
-			runOnUiThread(new Runnable() {
-			     @Override
-			     public void run() {
-			    	TextView text = (TextView) findViewById(R.id.textView_freq);
-					text.setText(String.format("%.2f", freq));
-			    }
-			});
 		}
 	});
 	
 	private final void recordAudio(boolean start) {
 		if (start) {
 			dispatcher.addAudioProcessor(pitch);
+			refFreq = Float.valueOf((String)((Spinner)findViewById(R.id.spinner_freq)).getSelectedItem());
 		}
-		else {
+		else {			
 			dispatcher.removeAudioProcessor(pitch);
+			freqFilter.clear();
+			controlMotor((byte)0, (byte)0);
 		}
 	}
 	
-	// BLE functions	
-	private final void SetMotorVelocity() {
+	// BLE functions
+	private final void controlMotor(byte ccw, byte duty) {
+    	if (mBluetoothLeService != null && mGattCharacteristic != null) {
+    		byte[] data = new byte[2];
+    		data[0] = ccw;
+    		data[1] = duty;	// 8-bit duty cycle
+    		mGattCharacteristic.setValue(data);
+    		mBluetoothLeService.writeCharacteristic(mGattCharacteristic);
+    	}
+	}
+	
+	private final void setMotorVelocity() {
     	if (mBluetoothLeService != null && mGattCharacteristic != null) {
     		byte[] data = new byte[2];
     		data[0] = motorDirection;
     		data[1] = motorDuty;	// 8-bit duty cycle
     		mGattCharacteristic.setValue(data);
-    		mBluetoothLeService.writeCharacteristic(mGattCharacteristic);
     	}
 	}
 	
@@ -194,7 +234,7 @@ public class HelloBle extends Activity {
  
 			public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser){
 				motorDuty = (byte)progress;
-				SetMotorVelocity();
+				setMotorVelocity();
 			}
  
 			public void onStartTrackingTouch(SeekBar seekBar) {				
@@ -211,12 +251,12 @@ public class HelloBle extends Activity {
 			@Override
 			public void onClick(View v) {
 				motorDirection = ((ToggleButton)v).isChecked() ? (byte)1 : (byte)0;
-				SetMotorVelocity();
+				setMotorVelocity();
 			}
 		});
 		
 		// Record
-		((Button)findViewById(R.id.toggleButton_record)).setOnClickListener(new View.OnClickListener() {
+		((ToggleButton)findViewById(R.id.toggleButton_record)).setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
 				boolean startRecording =((ToggleButton)v).isChecked();
@@ -265,7 +305,7 @@ public class HelloBle extends Activity {
         bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
         
         // init audio dispatcher
-		dispatcher = AudioDispatcherFactory.fromDefaultMicrophone(samplingFreq, bufferSize, bufferSize/4);
+		dispatcher = AudioDispatcherFactory.fromDefaultMicrophone(samplingFreq, bufferSize, bufferSize/2);
 		new Thread(dispatcher, "Audio Dispatcher").start();
 	}
 	
