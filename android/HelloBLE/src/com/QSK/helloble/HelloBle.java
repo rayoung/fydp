@@ -1,6 +1,5 @@
 package com.QSK.helloble;
 
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -43,7 +42,7 @@ public class HelloBle extends Activity {
 	// bluetooth request codes for initializing connection
 	private static final int REQUEST_ENABLE_BT = 1;
 	private static final int REQUEST_SELECT_DEVICE = 0;
-		
+	
 	private static String TAG = HelloBle.class.getSimpleName();
 	
 	// bluetooth datatypes
@@ -57,11 +56,13 @@ public class HelloBle extends Activity {
 	// motor parameters
 	private byte motorDirection = 0;	// 0 - CW, 1 - CCW
 	private byte motorDuty = 0;			// 0-255
+	private boolean startTuning = false;
 	
 	// recording parameters
-	private final int samplingFreq = 44100;
-	private final int bufferSize = 2048;
+	private final int samplingFreq = 22050;
+	private final int bufferSize = 1024;
 	private LinkedList<Float> freqFilter = new LinkedList<Float>();
+	private int numSamples;
 	
 	// controller parameters
 	private int k = 16;
@@ -76,14 +77,39 @@ public class HelloBle extends Activity {
 		@Override
 		public void handlePitch(PitchDetectionResult pitchDetectionResult, AudioEvent audioEvent) {
 			float pitchInHz = pitchDetectionResult.getPitch();
-			
-			//Log.i("sample", String.format("f = %f", pitchInHz));
+			pitchInHz = (pitchInHz == -1) ? 0 : pitchInHz;
+			Log.i("sample", String.format("%f", pitchInHz));
 			
 			// filter out samples where pitch wasn't detected
-			if (pitchInHz != -1) {
-				pitchInHz = (pitchInHz > 1.8 * refFreq) ? pitchInHz / 2 : pitchInHz;	// filter overtones
-				pitchInHz = (pitchInHz < 0.8 * refFreq) ? pitchInHz * 2 : pitchInHz;	// filter undertones
+			if (startTuning && pitchInHz != 0) {
+				// ignore first 5 samples
+				numSamples++;
+				if (numSamples <= 5) {
+					return;
+				}
 				
+				pitchInHz = (pitchInHz > 1.8 * refFreq) ? pitchInHz / 2 : pitchInHz;	// filter overtones
+				pitchInHz = (pitchInHz < 0.55 * refFreq) ? pitchInHz * 2 : pitchInHz;	// filter undertones
+				
+				float e = refFreq - pitchInHz;
+				byte ccw = (e < 0) ? (byte)1 : 0;
+				//Log.i("sample", String.format("m = %f, e = %f, ccw = %d", pitchInHz, e, ccw));
+
+				
+				// check if guitar is tuned
+				if (Math.abs(refFreq - pitchInHz) < 1) {
+					controlMotor((byte)0, (byte)0);
+					startTuning = false;		
+					return;
+				}
+				
+				//float e = k * Math.min(Math.abs(refFreq - median), Math.abs(refFreq - median / 2));
+				e = k * Math.abs(e);
+				byte u = (e > 192) ? (byte)192 : (byte)e;	// saturate output
+
+				controlMotor(ccw, u);
+				
+				/*
 				// add sample to median filter
 				freqFilter.add(Float.valueOf(pitchInHz));
 				
@@ -111,18 +137,27 @@ public class HelloBle extends Activity {
 
 					controlMotor(ccw, u);
 				}
+				*/
 			}
+			
+			final float freq = pitchInHz;
+			runOnUiThread(new Runnable() {
+			     @Override
+			     public void run() {
+			    	TextView text = (TextView) findViewById(R.id.textView_freq);
+					text.setText(String.format("%.2f", freq));
+			    }
+			});
 		}
 	});
 	
 	private final void recordAudio(boolean start) {
 		if (start) {
 			dispatcher.addAudioProcessor(pitch);
-			refFreq = Float.valueOf((String)((Spinner)findViewById(R.id.spinner_freq)).getSelectedItem());
 		}
-		else {			
+		else {
 			dispatcher.removeAudioProcessor(pitch);
-			freqFilter.clear();
+			//freqFilter.clear();
 			controlMotor((byte)0, (byte)0);
 		}
 	}
@@ -259,8 +294,15 @@ public class HelloBle extends Activity {
 		((ToggleButton)findViewById(R.id.toggleButton_record)).setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				boolean startRecording =((ToggleButton)v).isChecked();
-				recordAudio(startRecording);
+				startTuning = ((ToggleButton)v).isChecked();
+				if (startTuning) {
+					// reinitialize audio parameters
+					numSamples = 0;
+					refFreq = Float.valueOf((String)((Spinner)findViewById(R.id.spinner_freq)).getSelectedItem());
+				}
+				else {
+					controlMotor((byte)0, (byte)0);	// stop motor
+				}				
 			}
 	    });
 	}
@@ -305,7 +347,8 @@ public class HelloBle extends Activity {
         bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
         
         // init audio dispatcher
-		dispatcher = AudioDispatcherFactory.fromDefaultMicrophone(samplingFreq, bufferSize, bufferSize/2);
+		dispatcher = AudioDispatcherFactory.fromDefaultMicrophone(samplingFreq, bufferSize, bufferSize/4);
+		recordAudio(true);
 		new Thread(dispatcher, "Audio Dispatcher").start();
 	}
 	
@@ -319,13 +362,14 @@ public class HelloBle extends Activity {
                 Log.d(TAG, "Connect request result=" + result);	
         	}
         }
+        recordAudio(true);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        unregisterReceiver(mGattUpdateReceiver);
         recordAudio(false);
+        unregisterReceiver(mGattUpdateReceiver);
     }
     
 	@Override
@@ -361,9 +405,9 @@ public class HelloBle extends Activity {
     
     @Override
     public void onDestroy() {
+        dispatcher.stop();
         unbindService(mServiceConnection);
         mBluetoothLeService = null;
-        dispatcher.stop();
     	super.onDestroy();
     }
 }
