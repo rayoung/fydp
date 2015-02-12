@@ -298,31 +298,39 @@ public class CopyOfMainActivity extends Activity {
 		}
 	};
 
-	public void startRecording(View view) 
+	public void toggleRecording(View view)
 	{
-		
 		if (recording == true) 
 		{
-			recording = false;
-			btnStartRecording.setText(R.string.start_recording);
-			micInput.stop();
-			Toast.makeText(getApplicationContext(), "done", Toast.LENGTH_LONG)
-					.show();
-		} 
+			stopRecording();
+		}
+		else
+		{
+			startRecording();
+		}
+	}
+	
+	private void startRecording() 
+	{
+		// check if audio recorder is working
+		if (micInput.getState() != AudioRecord.STATE_INITIALIZED)
+			Toast.makeText(getApplicationContext(), R.string.error_audio,
+					Toast.LENGTH_LONG).show();
 		else 
 		{
-			// check if audio recorder is working
-			if (micInput.getState() != AudioRecord.STATE_INITIALIZED)
-				Toast.makeText(getApplicationContext(), R.string.error_audio,
-						Toast.LENGTH_LONG).show();
-			else 
-			{
-				recording = true;
-				btnStartRecording.setText(R.string.stop_recording);
-				new Thread(rec_thread).start();
-			}
+			recording = true;
+			btnStartRecording.setText(R.string.stop_recording);
+			new Thread(rec_thread).start();
 		}
-		//test_fft();
+	}
+	
+	private void stopRecording()
+	{
+		recording = false;
+		btnStartRecording.setText(R.string.start_recording);
+		micInput.stop();
+		Toast.makeText(getApplicationContext(), "done", Toast.LENGTH_LONG)
+				.show();
 	}
 
 	private void recording_loop()
