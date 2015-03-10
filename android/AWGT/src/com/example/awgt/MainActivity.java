@@ -309,9 +309,10 @@ public class MainActivity extends Activity {
 	}
 
 	public void popup() {
-		// popup menu for tuning
+		// popup menu for string selection
 		AlertDialog.Builder stringSelectionDialogBuilder = new AlertDialog.Builder(
 				this);
+		// getting string names (string1 to string 6)
 		String[] stringArray = new String[g_size];
 		for (int i = 0; i < g_size; i++) {
 			stringArray[i] = String.format(getString(R.string.string_name),
@@ -321,8 +322,10 @@ public class MainActivity extends Activity {
 		stringSelectionDialogBuilder.setItems(stringArray,
 				new DialogInterface.OnClickListener() {
 					public void onClick(DialogInterface dialog, int which) {
+						// popup menu for note selection
 						AlertDialog.Builder noteSelectionDialogBuilder = new AlertDialog.Builder(
 								MainActivity.this);
+						// notes list from tuning_map based on string selected
 						noteSelectionDialogBuilder.setTitle(R.string.pick_note);
 						final int tuning_size = tuning_map.get(which).size();
 						String[] tuningsArray = tuning_map.get(which).values()
@@ -332,6 +335,7 @@ public class MainActivity extends Activity {
 								new DialogInterface.OnClickListener() {
 									public void onClick(DialogInterface dialog,
 											int note_selection) {
+										// setting the tuning freq based on choice
 										set_tuning_freq(string_selection,
 												note_selection);
 									}
@@ -382,11 +386,17 @@ public class MainActivity extends Activity {
 		note_table.put("B",
 				Arrays.asList(30.87, 61.74, 123.5, 246.9, 493.9, 987.8));
 
+		// string 1 notes (lowest string)
 		strings_list.add(Arrays.asList("C2", "C#2", "D2", "Eb2", "E2"));
+		// string 2 notes
 		strings_list.add(Arrays.asList("C2", "C#2", "D2", "Eb2", "E2"));
+		// string 3 notes
 		strings_list.add(Arrays.asList("C2", "C#2", "D2", "Eb2", "E2"));
+		// string 4 notes
 		strings_list.add(Arrays.asList("C2", "C#2", "D2", "Eb2", "E2"));
+		// string 5 notes
 		strings_list.add(Arrays.asList("C2", "C#2", "D2", "Eb2", "E2"));
+		// string 6 notes (highest string)
 		strings_list.add(Arrays.asList("C2", "C#2", "D2", "Eb2", "E2"));
 
 		for (int i = 0; i < g_size; i++) {
@@ -406,6 +416,7 @@ public class MainActivity extends Activity {
 	private void set_tuning_freq(int string_selection, int note_selection) {
 		String detailed_note = strings_list.get(string_selection).get(
 				note_selection);
+		// getting the note selection
 		int cut_at = detailed_note.length() - 1;
 		String note = detailed_note.substring(0, cut_at);
 		int row = Integer.valueOf(detailed_note.substring(cut_at));
