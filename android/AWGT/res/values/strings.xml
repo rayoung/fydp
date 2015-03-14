@@ -6,7 +6,7 @@
     <string name="stop_recording">Stop Recording</string>
 	<string name="action_bluetooth">Bluetooth</string>
     <string name="action_search_bluetooth">Search Bluetooth</string>
-    <string name="send_data">Send Data</string>
+    <string name="send_data">Automatic Tune</string>
     <string name="error_audio">Audio Initialization Failed</string>
     <string name="hello_world">Hello world!</string>
     <string name="menu_settings">Settings</string>
@@ -23,5 +23,10 @@
     <string name="alert_level_off">Off</string>
     <string name="connected">Connected</string>
     <string name="disconnected">Not Connected</string>
+    <string name="action_tuning">♫</string>
+    <string name="pick_string">Pick the String to Tune</string>
+    <string name="pick_note">Pick the Note to Tune to</string>
+    <string name="string_name">String %d</string>
+    <string name="string_message">%1$s - %2$.2f Hz</string>
 
 </resources>

@@ -52,14 +52,14 @@ public class CopyOfMainActivity extends Activity {
 	// create variables for audio recording
 	private final int channel_config = AudioFormat.CHANNEL_IN_MONO;
 	private final int aud_format = AudioFormat.ENCODING_PCM_16BIT;
-	private final int sampleRate = 22050;
+	private final int sampleRate = 44100;
 	private final int minBufferSize = AudioRecord.getMinBufferSize(sampleRate,
 			channel_config, aud_format);
 	private int bufferSize;
 	{
-		if (1024 > minBufferSize)
+		if (sampleRate > minBufferSize)
 		{
-			bufferSize = 1024;
+			bufferSize = sampleRate;
 		}
 		else
 		{
@@ -298,31 +298,39 @@ public class CopyOfMainActivity extends Activity {
 		}
 	};
 
-	public void startRecording(View view) 
+	public void toggleRecording(View view)
 	{
-		
 		if (recording == true) 
 		{
-			recording = false;
-			btnStartRecording.setText(R.string.start_recording);
-			micInput.stop();
-			Toast.makeText(getApplicationContext(), "done", Toast.LENGTH_LONG)
-					.show();
-		} 
+			stopRecording();
+		}
+		else
+		{
+			startRecording();
+		}
+	}
+	
+	private void startRecording() 
+	{
+		// check if audio recorder is working
+		if (micInput.getState() != AudioRecord.STATE_INITIALIZED)
+			Toast.makeText(getApplicationContext(), R.string.error_audio,
+					Toast.LENGTH_LONG).show();
 		else 
 		{
-			// check if audio recorder is working
-			if (micInput.getState() != AudioRecord.STATE_INITIALIZED)
-				Toast.makeText(getApplicationContext(), R.string.error_audio,
-						Toast.LENGTH_LONG).show();
-			else 
-			{
-				recording = true;
-				btnStartRecording.setText(R.string.stop_recording);
-				new Thread(rec_thread).start();
-			}
+			recording = true;
+			btnStartRecording.setText(R.string.stop_recording);
+			new Thread(rec_thread).start();
 		}
-		//test_fft();
+	}
+	
+	private void stopRecording()
+	{
+		recording = false;
+		btnStartRecording.setText(R.string.start_recording);
+		micInput.stop();
+		Toast.makeText(getApplicationContext(), "done", Toast.LENGTH_LONG)
+				.show();
 	}
 
 	private void recording_loop()
@@ -364,7 +372,7 @@ public class CopyOfMainActivity extends Activity {
             		spectrum[i] = toTransform[i] * toTransform[i] - toTransform[i+1] *toTransform[i+1];
             		
             		// get max index of the Re component to find out dominant frequency
-                	if (spectrum[i] > max_val && spectrum[i] > 100)
+                	if (spectrum[i] > max_val && spectrum[i] > 200)
                 	{
                 		max_val = spectrum[i];
                 		max_index = i;
@@ -393,7 +401,7 @@ public class CopyOfMainActivity extends Activity {
         	double ac_peak = 0.0;
         	double threshold = spectrum[0] * 0.6;
         	double autocorr_freq = 0;
-        	long fund_freq = 0;
+        	double fund_freq = 0;
 
             // finding the secondary peak 
             boolean decreasing = false;
@@ -459,6 +467,10 @@ public class CopyOfMainActivity extends Activity {
 	            }
             }
 
+            if (dom_freq != 0 && autocorr_freq <= 1.5 * dom_freq)
+            {
+            	fund_freq = dom_freq/ Math.round((dom_freq / autocorr_freq));
+            }
             Log.i("DONE FFT STUFF", "DONE FFT STUFF");
             final double ac_freq = autocorr_freq; // frequency from autocorrelation
             final double freq = fund_freq; //used to display fund_freq              
@@ -469,9 +481,9 @@ public class CopyOfMainActivity extends Activity {
                 @Override
                 public void run() 
                 {
-                	txtViewFreq.setText(String.format("AC: %.2f", ac_freq));
+                	//txtViewFreq.setText(String.format("AC: %.2f", ac_freq));
                 	//txtViewFreq.setText(String.format("Dom:%.2f, Val:%.2f", dom_freq, max_value));
-                	//txtViewFreq.setText(String.format("Dom:%.2f \n AC: %.2f \n  Fund: %.2f", dom_freq, ac_freq, freq));
+                	txtViewFreq.setText(String.format("Dom:%.2f \n AC: %.2f \n  Fund: %.2f", dom_freq, ac_freq, freq));
             		//txtViewFreq.setText(String.format("Dom:%.2f \n ACFFT: %.2f \n ACBrute: %.2f \n Fund: %.2f", dom_freq, ac_freq, ac_freq_brute, freq));
                 }
             });
