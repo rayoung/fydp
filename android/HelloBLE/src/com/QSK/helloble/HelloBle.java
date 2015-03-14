@@ -54,19 +54,25 @@ public class HelloBle extends Activity {
 	private boolean mConnected = false;
 		
 	// motor parameters
-	private byte motorDirection = 0;	// 0 - CW, 1 - CCW
+	private byte motorDirection = 0;	// 1 - CW, 0 - CCW
 	private byte motorDuty = 0;			// 0-255
 	private boolean startTuning = false;
+	private float integral = 0;
 	
 	// recording parameters
 	private final int samplingFreq = 22050;
 	private final int bufferSize = 1024;
 	private LinkedList<Float> freqFilter = new LinkedList<Float>();
 	private int numSamples;
+	private long lastTimestamp = 0;
 	
 	// controller parameters
-	private int k = 16;
-	private float refFreq;
+	// strings 5/6 k=10, k_i =0
+	// string 3/4 k=16, k_i=2
+	// string 1/2 k =100, k_i =4
+	private int k =16; // 12 is good for the highest 2 strings (0 k_i) //16;
+	private float k_i = 2f; //4f;
+	private float refFreq = -100;
 	
 	AudioDispatcher dispatcher;
 	PitchProcessor pitch = new PitchProcessor(PitchEstimationAlgorithm.YIN,
@@ -78,67 +84,6 @@ public class HelloBle extends Activity {
 		public void handlePitch(PitchDetectionResult pitchDetectionResult, AudioEvent audioEvent) {
 			float pitchInHz = pitchDetectionResult.getPitch();
 			pitchInHz = (pitchInHz == -1) ? 0 : pitchInHz;
-			Log.i("sample", String.format("%f", pitchInHz));
-			
-			// filter out samples where pitch wasn't detected
-			if (startTuning && pitchInHz != 0) {
-				// ignore first 5 samples
-				numSamples++;
-				if (numSamples <= 5) {
-					return;
-				}
-				
-				pitchInHz = (pitchInHz > 1.8 * refFreq) ? pitchInHz / 2 : pitchInHz;	// filter overtones
-				pitchInHz = (pitchInHz < 0.55 * refFreq) ? pitchInHz * 2 : pitchInHz;	// filter undertones
-				
-				float e = refFreq - pitchInHz;
-				byte ccw = (e < 0) ? (byte)1 : 0;
-				//Log.i("sample", String.format("m = %f, e = %f, ccw = %d", pitchInHz, e, ccw));
-
-				
-				// check if guitar is tuned
-				if (Math.abs(refFreq - pitchInHz) < 1) {
-					controlMotor((byte)0, (byte)0);
-					startTuning = false;		
-					return;
-				}
-				
-				//float e = k * Math.min(Math.abs(refFreq - median), Math.abs(refFreq - median / 2));
-				e = k * Math.abs(e);
-				byte u = (e > 192) ? (byte)192 : (byte)e;	// saturate output
-
-				controlMotor(ccw, u);
-				
-				/*
-				// add sample to median filter
-				freqFilter.add(Float.valueOf(pitchInHz));
-				
-				if (freqFilter.size() == 10) {
-					freqFilter.removeFirst();
-					
-					// calculate median
-					LinkedList<Float> sorted = new LinkedList<Float>(freqFilter);
-					Collections.sort(sorted);
-					float median = sorted.get(4).floatValue();
-					
-					float e = refFreq - median;
-					byte ccw = (e < 0) ? (byte)1 : 0;
-					Log.i("median", String.format("m = %f, e = %f, ccw = %d", median, e, ccw));
-
-					// check if guitar is tuned
-					if (Math.abs(refFreq - median) < 1) {
-						recordAudio(false);
-						return;
-					}
-					
-					//float e = k * Math.min(Math.abs(refFreq - median), Math.abs(refFreq - median / 2));
-					e = k * Math.abs(e);
-					byte u = (e > 255) ? (byte)255 : (byte)e;	// saturate output
-
-					controlMotor(ccw, u);
-				}
-				*/
-			}
 			
 			final float freq = pitchInHz;
 			runOnUiThread(new Runnable() {
@@ -148,6 +93,42 @@ public class HelloBle extends Activity {
 					text.setText(String.format("%.2f", freq));
 			    }
 			});
+			
+			long delta_t = System.currentTimeMillis() - lastTimestamp;
+			// filter out samples where pitch wasn't detected
+			if (startTuning && (delta_t > 20) && (pitchInHz != 0)) {
+				// ignore first 3 samples
+				numSamples++;
+				if (numSamples <= 3) {
+					return;
+				}
+				
+				pitchInHz = (pitchInHz > 1.8 * refFreq) ? pitchInHz / 2 : pitchInHz;	// filter overtones
+				pitchInHz = (pitchInHz < 0.55 * refFreq) ? pitchInHz * 2 : pitchInHz;	// filter undertones
+				
+				//Log.i("sample", String.format("%f", pitchInHz));
+				
+				float e = refFreq - pitchInHz;
+				
+				// check if guitar is tuned
+				if (Math.abs(e) < 1) {
+					controlMotor((byte)0, (byte)0);
+					startTuning = false;
+					lastTimestamp = System.currentTimeMillis();
+					Log.i("done", String.format("%d", lastTimestamp));
+					return;
+				}
+				
+				integral = integral + e * (float)delta_t / 1000;
+				byte cw = (e < 0) ? (byte)0 : 1;
+				
+				e = k * Math.abs(e) + k_i * integral;
+				byte u = (e > 255) ? (byte)255 : (byte)e;	// saturate output
+
+				controlMotor(cw, u);
+				
+				lastTimestamp = System.currentTimeMillis();	
+			}
 		}
 	});
 	
@@ -298,6 +279,7 @@ public class HelloBle extends Activity {
 				if (startTuning) {
 					// reinitialize audio parameters
 					numSamples = 0;
+					integral = 0;
 					refFreq = Float.valueOf((String)((Spinner)findViewById(R.id.spinner_freq)).getSelectedItem());
 				}
 				else {
