@@ -3,16 +3,27 @@ package com.example.awgt;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattService;
+import android.content.BroadcastReceiver;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.IBinder;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -23,7 +34,6 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import be.tarsos.dsp.AudioDispatcher;
 import be.tarsos.dsp.AudioEvent;
 import be.tarsos.dsp.io.android.AudioDispatcherFactory;
@@ -32,6 +42,8 @@ import be.tarsos.dsp.pitch.PitchDetectionResult;
 import be.tarsos.dsp.pitch.PitchProcessor;
 import be.tarsos.dsp.pitch.PitchProcessor.PitchEstimationAlgorithm;
 
+import com.QSK.bleProfiles.HelloBLEService;
+import com.QSK.helloble.DeviceListActivity;
 import com.QSK.helloble.HelloBle;
 import com.example.awgt.util.SystemUiHider;
 
@@ -54,13 +66,40 @@ public class MainActivity extends Activity {
 	private List<LinkedHashMap<Double, String>> tuning_map = new ArrayList<LinkedHashMap<Double, String>>();
 	private List<List<String>> strings_list = new ArrayList<List<String>>();
 
-	// Tuning variable
+	// bluetooth request codes for initializing connection
+	private static final int REQUEST_ENABLE_BT = 1;
+	private static final int REQUEST_SELECT_DEVICE = 0;
 
-	private double tune_to_freq = 0;
+	private static String TAG = HelloBle.class.getSimpleName();
 
-	// parameters
+	// bluetooth datatypes
+	BluetoothAdapter mBtAdapter = null;
+	private HelloBLEService mBluetoothLeService;
+	private BluetoothDevice mDevice = null;
+	private List<BluetoothGattService> mGattServices = null;
+	private BluetoothGattCharacteristic mGattCharacteristic = null;
+	private boolean mConnected = false;
+
+	// motor parameters
+	private byte motorDirection = 0; // 1 - CW, 0 - CCW
+	private byte motorDuty = 0; // 0-255
+	private boolean startTuning = false;
+	private double integral = 0;
+
+	// recording parameters
 	private final int samplingFreq = 44100;
 	private final int bufferSize = 2048;
+	private LinkedList<Double> freqFilter = new LinkedList<Double>();
+	private int numSamples;
+	private long lastTimestamp = 0;
+
+	// controller parameters
+	// strings 5/6 k=10, k_i =0
+	// string 3/4 k=16, k_i=2
+	// string 1/2 k =100, k_i =4
+	private int k = 16; // 12 is good for the highest 2 strings (0 k_i) //16;
+	private double k_i = 2; // 4f;
+	private double refFreq = -100;
 
 	/**
 	 * Whether or not the system UI should be auto-hidden after
@@ -97,16 +136,10 @@ public class MainActivity extends Activity {
 				public void handlePitch(
 						PitchDetectionResult pitchDetectionResult,
 						AudioEvent audioEvent) {
-					float pitchInHz = pitchDetectionResult.getPitch();
-					float prob = pitchDetectionResult.getProbability();
+					double pitchInHz = pitchDetectionResult.getPitch();
+					pitchInHz = (pitchInHz == -1) ? 0 : pitchInHz;
 
-					Log.i("sample",
-							String.format("f = %f, p = %f", pitchInHz, prob));
-
-					if (pitchInHz < 0) {
-						pitchInHz = 0;
-					}
-					final float freq = pitchInHz;
+					final double freq = pitchInHz;
 					runOnUiThread(new Runnable() {
 						@Override
 						public void run() {
@@ -114,8 +147,139 @@ public class MainActivity extends Activity {
 							text.setText(String.format("%.2f", freq));
 						}
 					});
+
+					long delta_t = System.currentTimeMillis() - lastTimestamp;
+					// filter out samples where pitch wasn't detected
+					if (startTuning && (delta_t > 20) && (pitchInHz != 0)) {
+						// ignore first 3 samples
+						numSamples++;
+						if (numSamples <= 3) {
+							return;
+						}
+
+						pitchInHz = (pitchInHz > 1.8 * refFreq) ? pitchInHz / 2
+								: pitchInHz; // filter overtones
+						pitchInHz = (pitchInHz < 0.55 * refFreq) ? pitchInHz * 2
+								: pitchInHz; // filter undertones
+
+						// Log.i("sample", String.format("%f", pitchInHz));
+
+						double e = refFreq - pitchInHz;
+
+						// check if guitar is tuned
+						if (Math.abs(e) < 1) {
+							controlMotor((byte) 0, (byte) 0);
+							startTuning = false;
+							lastTimestamp = System.currentTimeMillis();
+							Log.i("done", String.format("%d", lastTimestamp));
+							return;
+						}
+
+						integral = integral + e * (double) delta_t / 1000;
+						byte cw = (e < 0) ? (byte) 0 : 1;
+
+						e = k * Math.abs(e) + k_i * integral;
+						byte u = (e > 255) ? (byte) 255 : (byte) e; // saturate
+																	// output
+
+						controlMotor(cw, u);
+
+						lastTimestamp = System.currentTimeMillis();
+					}
 				}
 			});
+
+	// BLE functions
+	private final void controlMotor(byte ccw, byte duty) {
+		if (mBluetoothLeService != null && mGattCharacteristic != null) {
+			byte[] data = new byte[2];
+			data[0] = ccw;
+			data[1] = duty; // 8-bit duty cycle
+			mGattCharacteristic.setValue(data);
+			mBluetoothLeService.writeCharacteristic(mGattCharacteristic);
+		}
+	}
+
+	// Code to manage Service lifecycle.
+	private final ServiceConnection mServiceConnection = new ServiceConnection() {
+
+		@Override
+		public void onServiceConnected(ComponentName componentName,
+				IBinder service) {
+			Log.d(TAG, "onServiceConnected");
+			mBluetoothLeService = ((HelloBLEService.LocalBinder) service)
+					.getService();
+			if (!mBluetoothLeService.initialize()) {
+				Log.e(TAG, "Unable to initialize Bluetooth");
+				finish();
+			}
+			// Automatically connects to the device upon successful start-up
+			// initialization.
+			if (mDevice != null) {
+				mBluetoothLeService.connect(mDevice.getAddress());
+			} else {
+				Log.e(TAG, "mDevice is null");
+			}
+		}
+
+		@Override
+		public void onServiceDisconnected(ComponentName componentName) {
+			mBluetoothLeService = null;
+		}
+	};
+
+	private static IntentFilter makeGattUpdateIntentFilter() {
+		final IntentFilter intentFilter = new IntentFilter();
+		intentFilter.addAction(HelloBLEService.ACTION_GATT_CONNECTED);
+		intentFilter.addAction(HelloBLEService.ACTION_GATT_DISCONNECTED);
+		intentFilter.addAction(HelloBLEService.ACTION_GATT_SERVICES_DISCOVERED);
+		intentFilter.addAction(HelloBLEService.ACTION_DATA_AVAILABLE);
+		return intentFilter;
+	}
+
+	// Handles various events fired by the Service.
+	// ACTION_GATT_CONNECTED: connected to a GATT server.
+	// ACTION_GATT_DISCONNECTED: disconnected from a GATT server.
+	// ACTION_GATT_SERVICES_DISCOVERED: discovered GATT services.
+	// ACTION_DATA_AVAILABLE: received data from the device. This can be a
+	// result of read
+	// or notification operations.
+	private final BroadcastReceiver mGattUpdateReceiver = new BroadcastReceiver() {
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			final String action = intent.getAction();
+			if (HelloBLEService.ACTION_GATT_CONNECTED.equals(action)) {
+				mConnected = true;
+				setUiState();
+			} else if (HelloBLEService.ACTION_GATT_DISCONNECTED.equals(action)) {
+				mConnected = false;
+				setUiState();
+			} else if (HelloBLEService.ACTION_GATT_SERVICES_DISCOVERED
+					.equals(action)) {
+				mGattServices = mBluetoothLeService.getSupportedGattServices();
+				for (BluetoothGattService s : mGattServices) {
+					// look for tuning service and store characteristic
+					if (s.getUuid().equals(mBluetoothLeService.UUID_SERVICE)) {
+						mGattCharacteristic = s
+								.getCharacteristic(mBluetoothLeService.UUID_CHARACTERISTIC);
+						break;
+					} else {
+						continue;
+					}
+				}
+			} else if (HelloBLEService.ACTION_DATA_AVAILABLE.equals(action)) {
+				// data read from device
+				// String data =
+				// intent.getStringExtra(mBluetoothLeService.EXTRA_DATA);
+				// ((TextView)
+				// findViewById(R.id.textView_username)).setText(data);
+			}
+		}
+	};
+
+	private void setUiState() {
+		findViewById(R.id.send_data).setEnabled(mConnected);
+	}
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -184,11 +348,34 @@ public class MainActivity extends Activity {
 		// while interacting with the UI.
 		btnStartRecording.setOnTouchListener(mDelayHideTouchListener);
 
+		setup_tuning_variables();
+
+		/* Ensure Bluetooth is enabled */
+		mBtAdapter = BluetoothAdapter.getDefaultAdapter();
+		if (mBtAdapter == null) {
+			Toast.makeText(this, "Bluetooth is not available - exiting...",
+					Toast.LENGTH_LONG).show();
+			finish();
+			return;
+		}
+
+		if (!mBtAdapter.isEnabled()) {
+			Intent enableIntent = new Intent(
+					BluetoothAdapter.ACTION_REQUEST_ENABLE);
+			startActivityForResult(enableIntent, REQUEST_ENABLE_BT);
+		} else {
+
+		}
+
+		setUiState();
+
+		Intent gattServiceIntent = new Intent(this, HelloBLEService.class);
+		bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
+
+		// init audio dispatcher
 		dispatcher = AudioDispatcherFactory.fromDefaultMicrophone(samplingFreq,
 				bufferSize, bufferSize / 4);
 		new Thread(dispatcher, "Audio Dispatcher").start();
-		findViewById(R.id.send_data).setEnabled(false);
-		setup_tuning_variables();
 	}
 
 	@Override
@@ -259,31 +446,63 @@ public class MainActivity extends Activity {
 	}
 
 	@Override
-	public void onPause() {
+	protected void onPause() {
+		super.onPause();
+		unregisterReceiver(mGattUpdateReceiver);
 		stopRecording();
 		super.onPause();
 	}
 
 	@Override
-	public void onResume() {
+	protected void onResume() {
 		super.onResume();
-		Log.i("MAIN", "+ ON RESUME+");
+		registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
+		if (mBluetoothLeService != null) {
+			if (mDevice != null) {
+				final boolean result = mBluetoothLeService.connect(mDevice
+						.getAddress());
+				Log.d(TAG, "Connect request result=" + result);
+			}
+		}
 	}
 
 	@Override
-	public void onDestroy() {
+	protected void onDestroy() {
+		unbindService(mServiceConnection);
+		mBluetoothLeService = null;
 		dispatcher.stop();
 		super.onDestroy();
 	}
 
-	private void enableBluetooth() {
-		if (recording == true) {
-			recording = false;
-			btnStartRecording.setText(R.string.start_recording);
-			dispatcher.removeAudioProcessor(pitch);
+	@Override
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+		Log.d("ActivityResult", Integer.toString(requestCode));
+		if (requestCode == REQUEST_ENABLE_BT) {
+			if (resultCode != Activity.RESULT_OK) {
+				finish();
+			} else {
+				mBtAdapter.startDiscovery();
+			}
+		} else if (requestCode == REQUEST_SELECT_DEVICE) {
+			if (resultCode == Activity.RESULT_OK && data != null) {
+				String deviceAddress = data
+						.getStringExtra(BluetoothDevice.EXTRA_DEVICE);
+
+				mDevice = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(
+						deviceAddress);
+				setUiState();
+			} else {
+				Toast.makeText(this, "failed to select the device - try again",
+						Toast.LENGTH_LONG).show();
+			}
 		}
-		Intent copy = new Intent(this, HelloBle.class);
-		startActivity(copy);
+	}
+
+	private void enableBluetooth() {
+		stopRecording();
+		Intent newIntent = new Intent(MainActivity.this,
+				DeviceListActivity.class);
+		startActivityForResult(newIntent, REQUEST_SELECT_DEVICE);
 	}
 
 	public void toggleRecording(View view) {
@@ -298,14 +517,20 @@ public class MainActivity extends Activity {
 		recording = false;
 		btnStartRecording.setText(R.string.start_recording);
 		dispatcher.removeAudioProcessor(pitch);
-		// Toast.makeText(getApplicationContext(), "done",
-		// Toast.LENGTH_LONG).show();
+		// freqFilter.clear();
+		controlMotor((byte) 0, (byte) 0);
 	}
 
 	private void startRecording() {
-		recording = true;
-		btnStartRecording.setText(R.string.stop_recording);
-		dispatcher.addAudioProcessor(pitch);
+		if (refFreq <= 0) {
+			Toast.makeText(this, "Select a desired tuning frequency.",
+					Toast.LENGTH_LONG).show();
+			popup();
+		} else {
+			recording = true;
+			btnStartRecording.setText(R.string.stop_recording);
+			dispatcher.addAudioProcessor(pitch);
+		}
 	}
 
 	public void popup() {
@@ -335,7 +560,8 @@ public class MainActivity extends Activity {
 								new DialogInterface.OnClickListener() {
 									public void onClick(DialogInterface dialog,
 											int note_selection) {
-										// setting the tuning freq based on choice
+										// setting the tuning freq based on
+										// choice
 										set_tuning_freq(string_selection,
 												note_selection);
 									}
@@ -358,7 +584,7 @@ public class MainActivity extends Activity {
 				ViewGroup.LayoutParams.WRAP_CONTENT);
 	}
 
-	public void setup_tuning_variables() {
+	private void setup_tuning_variables() {
 		// notes and frequencies from
 		// http://www.seventhstring.com/resources/notefrequencies.html
 		note_table.put("C",
@@ -420,11 +646,11 @@ public class MainActivity extends Activity {
 		int cut_at = detailed_note.length() - 1;
 		String note = detailed_note.substring(0, cut_at);
 		int row = Integer.valueOf(detailed_note.substring(cut_at));
-		tune_to_freq = note_table.get(note).get(row);
+		refFreq = note_table.get(note).get(row);
 		Toast.makeText(
 				getApplicationContext(),
 				String.format("Tuning string %1$d to %2$.2f Hz",
-						string_selection + 1, tune_to_freq), Toast.LENGTH_LONG)
+						string_selection + 1, refFreq), Toast.LENGTH_LONG)
 				.show();
 	}
 }
