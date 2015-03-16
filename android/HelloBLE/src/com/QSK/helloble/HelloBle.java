@@ -3,7 +3,6 @@ package com.QSK.helloble;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.List;
 
 import android.app.Activity;
@@ -68,24 +67,21 @@ public class HelloBle extends Activity {
 	private boolean mConnected = false;
 
 	// motor parameters
-	private byte motorDirection = 0; // 1 - CW, 0 - CCW
-	private byte motorDuty = 0; // 0-255
 	private boolean isTuning = false;
 	private double integral = 0;
 
 	// recording parameters
 	private final int samplingFreq = 44100;
 	private final int bufferSize = 2048;
-	private LinkedList<Double> freqFilter = new LinkedList<Double>();
-	private int numSamples;
+	private int numSamples = 0;
 	private long lastTimestamp = 0;
 
 	// controller parameters
 	// strings 5/6 k=10, k_i =0
 	// string 3/4 k=16, k_i=2
 	// string 1/2 k =100, k_i =4
-	private int k = 16; // 12 is good for the highest 2 strings (0 k_i) //16;
-	private double k_i = 2; // 4f;
+	private int k = 0; 
+	private int k_i = 0; 
 	private double refFreq = -100;
 
 	AudioDispatcher dispatcher;
@@ -130,6 +126,9 @@ public class HelloBle extends Activity {
 							controlMotor((byte) 0, (byte) 0);
 							isTuning = false;
 							lastTimestamp = System.currentTimeMillis();
+							// reset tuning variables
+							numSamples = 0;
+							integral = 0;
 							Log.i("done", String.format("%d", lastTimestamp));
 							return;
 						}
@@ -246,8 +245,6 @@ public class HelloBle extends Activity {
 
 		setContentView(R.layout.activity_main);
 
-		final View controlsView = findViewById(R.id.fullscreen_content_controls);
-		final View contentView = findViewById(R.id.fullscreen_content);
 		btnStartRecording = (Button) findViewById(R.id.start_recording);
 
 		setup_tuning_variables();
@@ -416,6 +413,7 @@ public class HelloBle extends Activity {
 		stringSelectionDialogBuilder.setTitle(R.string.pick_string);
 		stringSelectionDialogBuilder.setItems(stringArray,
 				new DialogInterface.OnClickListener() {
+					// string selection
 					public void onClick(DialogInterface dialog, int which) {
 						// popup menu for note selection
 						AlertDialog.Builder noteSelectionDialogBuilder = new AlertDialog.Builder(
@@ -426,6 +424,7 @@ public class HelloBle extends Activity {
 						String[] tuningsArray = tuning_map.get(which).values()
 								.toArray(new String[tuning_size - 1]);
 						final int string_selection = which;
+						setGainValues(string_selection);
 						noteSelectionDialogBuilder.setItems(tuningsArray,
 								new DialogInterface.OnClickListener() {
 									public void onClick(DialogInterface dialog,
@@ -530,6 +529,22 @@ public class HelloBle extends Activity {
 		else {
 			isTuning = true;
 			Log.i("tuning", "start");
+		}
+	}
+	
+	private void setGainValues(int stringSelection){
+		// strings 5/6 k=10, k_i =0
+		// string 3/4 k=16, k_i=2
+		// string 1/2 k =100, k_i =4
+		if (stringSelection <= 1){
+			k = 100;
+			k_i = 4;
+		} else if (stringSelection <= 3){
+			k = 16;
+			k_i = 2;
+		} else if (stringSelection <= 5) {
+			k = 10;
+			k_i = 0;
 		}
 	}
 }
