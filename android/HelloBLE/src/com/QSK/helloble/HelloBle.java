@@ -520,4 +520,9 @@ public class HelloBle extends Activity {
 		TextView text = (TextView) findViewById(R.id.fullscreen_content);
 		text.setText(String.format(getString(R.string.display_message), 0.00, refFreq));
 	}
+	
+	public void startTuning()
+	{
+		startTuning = true;
+	}
 }
