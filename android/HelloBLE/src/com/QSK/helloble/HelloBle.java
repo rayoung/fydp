@@ -129,6 +129,7 @@ public class HelloBle extends Activity {
 							// reset tuning variables
 							numSamples = 0;
 							integral = 0;
+							Log.i("sample", String.format("%f", pitchInHz));
 							Log.i("done", String.format("%d", lastTimestamp));
 							return;
 						}

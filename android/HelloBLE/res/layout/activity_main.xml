@@ -4,7 +4,10 @@
     android:layout_height="match_parent"
     android:background="@drawable/bg"
     tools:context="com.example.awgt.MainActivity" >
-
+    <!--
+		image from http://guitardesignreviews.com/wp-content/uploads/2012/06/IMG_823SLG.jpg 
+    --> 
+    
     <!--
          The primary full-screen view. This can be replaced with whatever view
          is needed to present your content, e.g. VideoView, SurfaceView,
