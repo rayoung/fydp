@@ -483,17 +483,17 @@ public class HelloBle extends Activity {
 				Arrays.asList(30.87, 61.74, 123.5, 246.9, 493.9, 987.8));
 
 		// string 1 notes (lowest string)
-		strings_list.add(Arrays.asList("C2", "C#2", "D2", "Eb2", "E2"));
+		strings_list.add(Arrays.asList("C#2", "D2", "Eb2", "E2", "F2", "F#2", "G2"));
 		// string 2 notes
-		strings_list.add(Arrays.asList("A2"));
+		strings_list.add(Arrays.asList("F#2","G2","G#2","A2","Bb2","B2","C3"));
 		// string 3 notes
-		strings_list.add(Arrays.asList("D3"));
+		strings_list.add(Arrays.asList("B2","C3","C#3","D3","Eb3","E3","F3"));
 		// string 4 notes
-		strings_list.add(Arrays.asList("G3"));
+		strings_list.add(Arrays.asList("E3","F3","F#3","G3","G#3","A3","Bb3"));
 		// string 5 notes
-		strings_list.add(Arrays.asList("B3"));
+		strings_list.add(Arrays.asList("G#3","A3","Bb3","B3","C4","C#4","D4"));
 		// string 6 notes (highest string)
-		strings_list.add(Arrays.asList("E4"));
+		strings_list.add(Arrays.asList("C#4", "D4", "Eb4", "E4", "F4", "F#4", "G4"));
 
 		for (int i = 0; i < g_size; i++) {
 			tuning_map.add(new LinkedHashMap<Double, String>());
