@@ -70,7 +70,7 @@ public class HelloBle extends Activity {
 	// motor parameters
 	private byte motorDirection = 0; // 1 - CW, 0 - CCW
 	private byte motorDuty = 0; // 0-255
-	private boolean startTuning = false;
+	private boolean isTuning = false;
 	private double integral = 0;
 
 	// recording parameters
@@ -109,7 +109,7 @@ public class HelloBle extends Activity {
 
 					long delta_t = System.currentTimeMillis() - lastTimestamp;
 					// filter out samples where pitch wasn't detected
-					if (startTuning && (delta_t > 20) && (pitchInHz != 0)) {
+					if (isTuning && (delta_t > 20) && (pitchInHz != 0)) {
 						// ignore first 3 samples
 						numSamples++;
 						if (numSamples <= 3) {
@@ -128,7 +128,7 @@ public class HelloBle extends Activity {
 						// check if guitar is tuned
 						if (Math.abs(e) < 1) {
 							controlMotor((byte) 0, (byte) 0);
-							startTuning = false;
+							isTuning = false;
 							lastTimestamp = System.currentTimeMillis();
 							Log.i("done", String.format("%d", lastTimestamp));
 							return;
@@ -345,7 +345,7 @@ public class HelloBle extends Activity {
 	}
 
 	@Override
-	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+	public void onActivityResult(int requestCode, int resultCode, Intent data) {
 		Log.d("ActivityResult", Integer.toString(requestCode));
 		if (requestCode == REQUEST_ENABLE_BT) {
 			if (resultCode != Activity.RESULT_OK) {
@@ -521,8 +521,15 @@ public class HelloBle extends Activity {
 		text.setText(String.format(getString(R.string.display_message), 0.00, refFreq));
 	}
 	
-	public void startTuning()
-	{
-		startTuning = true;
+	public void toggleTuning(View view) {
+		if (isTuning) {
+			controlMotor((byte) 0, (byte) 0);
+			isTuning = false;
+			Log.i("tuning", "stop");
+		}
+		else {
+			isTuning = true;
+			Log.i("tuning", "start");
+		}
 	}
 }
