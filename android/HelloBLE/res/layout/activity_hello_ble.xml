@@ -1,41 +1,63 @@
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:gravity="center"  
+    android:orientation="vertical"
+    android:background="@drawable/bg"
     tools:context=".HelloBle" >
+    
+  	<LinearLayout
+  	    android:layout_width="fill_parent"
+  	    android:layout_height="wrap_content"
+  	    android:gravity="center_horizontal"
+  	    android:orientation="horizontal" >
 
-   <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical" >
-
-        <Spinner
-            android:id="@+id/spinner_freq"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:entries="@array/freqs_array" />
-
+	    <TextView
+             android:id="@+id/textView_freqLabel"
+             android:layout_width="wrap_content"
+             android:layout_height="wrap_content"
+             android:text="Freq: "
+             android:textColor="#FFF"
+             android:textSize="30sp" />
+  	    
         <TextView
-            android:id="@+id/textView_recording"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Record" />
-        
-        <ToggleButton
-           	android:id="@+id/toggleButton_record"
-           	android:layout_width="wrap_content"
-           	android:layout_height="wrap_content"
-           	android:orientation="horizontal"
-           	android:textOn="Stop"
-           	android:textOff="Start" />
-
-         <TextView
-            android:id="@+id/textView_freq"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="14sp"
-            android:text="0.00" />
-        
+             android:id="@+id/textView_freq"
+             android:layout_width="wrap_content"
+             android:layout_height="wrap_content"
+             android:text="0.00"
+             android:textColor="#FFF"
+             android:textSize="30sp" />
+      
     </LinearLayout>
 
-</RelativeLayout>
+  	<LinearLayout
+  	    android:layout_width="fill_parent"
+  	    android:layout_height="wrap_content"
+  	    android:gravity="center_horizontal"
+  	    android:orientation="horizontal" >
+        
+        <TextView
+             android:id="@+id/textView_refLabel"
+             android:layout_width="wrap_content"
+             android:layout_height="wrap_content"
+             android:text="Ref: "
+             android:textColor="#FFF"
+             android:textSize="30sp" />
+        
+  	    <TextView
+             android:id="@+id/textView_ref"
+             android:layout_width="wrap_content"
+             android:layout_height="wrap_content"
+             android:text="0.00"
+             android:textColor="#FFF"
+             android:textSize="30sp" />
+  	</LinearLayout>
+  	
+ 	<Button
+      	android:id="@+id/button_record"
+      	android:layout_width="wrap_content"
+      	android:layout_height="wrap_content"
+      	android:orientation="horizontal"
+      	android:text="Start" />
+</LinearLayout>

@@ -1,6 +1,8 @@
 package com.QSK.helloble;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 import be.tarsos.dsp.AudioDispatcher;
@@ -17,6 +19,7 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.app.ActionBar;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGattCharacteristic;
@@ -24,6 +27,7 @@ import android.bluetooth.BluetoothGattService;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
@@ -31,9 +35,10 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.ToggleButton;
+import android.widget.Button;
 import android.widget.Spinner;
 
 
@@ -43,6 +48,12 @@ public class HelloBle extends Activity {
 	private static final int REQUEST_SELECT_DEVICE = 0;
 	
 	private static String TAG = HelloBle.class.getSimpleName();
+
+	// Tuning hash map
+	final int g_size = 6;
+	private LinkedHashMap<String, List<Double>> note_table = new LinkedHashMap<String, List<Double>>();
+	private List<LinkedHashMap<Double, String>> tuning_map = new ArrayList<LinkedHashMap<Double, String>>();
+	private List<List<String>> strings_list = new ArrayList<List<String>>();
 	
 	// bluetooth datatypes
 	BluetoothAdapter mBtAdapter = null;
@@ -53,8 +64,8 @@ public class HelloBle extends Activity {
 	private boolean mConnected = false;
 		
 	// motor parameters
-	private boolean startTuning = false;
-	private float integral = 0;
+	private boolean isTuning = false;
+	private double integral = 0;
 	
 	// recording parameters
 	private final int samplingFreq = 22050;
@@ -68,7 +79,7 @@ public class HelloBle extends Activity {
 	// string 1/2 k =100, k_i =4
 	private int k =16; // 12 is good for the highest 2 strings (0 k_i) //16;
 	private float k_i = 2f; //4f;
-	private float refFreq = -100;
+	private double refFreq = 0;
 	
 	AudioDispatcher dispatcher;
 	PitchProcessor pitch = new PitchProcessor(PitchEstimationAlgorithm.YIN,
@@ -92,7 +103,7 @@ public class HelloBle extends Activity {
 			
 			long delta_t = System.currentTimeMillis() - lastTimestamp;
 			// filter out samples where pitch wasn't detected
-			if (startTuning && (delta_t > 20) && (pitchInHz != 0)) {
+			if (isTuning && (delta_t > 20) && (pitchInHz != 0)) {
 				// ignore first 3 samples
 				numSamples++;
 				if (numSamples <= 3) {
@@ -104,18 +115,27 @@ public class HelloBle extends Activity {
 				
 				//Log.i("sample", String.format("%f", pitchInHz));
 				
-				float e = refFreq - pitchInHz;
+				double e = refFreq - pitchInHz;
 				
 				// check if guitar is tuned
 				if (Math.abs(e) < 1) {
 					controlMotor((byte)0, (byte)0);
-					startTuning = false;
+					isTuning = false;
 					lastTimestamp = System.currentTimeMillis();
+					
+					runOnUiThread(new Runnable() {
+					     @Override
+					     public void run() {
+					    	 ((Button)findViewById(R.id.button_record)).setText("Start");
+						     Toast.makeText(getApplicationContext(), "Finished tuning", Toast.LENGTH_LONG).show();
+					    }
+					});
+					
 					Log.i("done", String.format("%d", lastTimestamp));
 					return;
 				}
 				
-				integral = integral + e * (float)delta_t / 1000;
+				integral = integral + e * delta_t / 1000.0;
 				byte cw = (e < 0) ? (byte)0 : 1;
 				
 				e = k * Math.abs(e) + k_i * integral;
@@ -228,21 +248,157 @@ public class HelloBle extends Activity {
 	void InitUIHandlers()
 	{		
 		// Record
-		((ToggleButton)findViewById(R.id.toggleButton_record)).setOnClickListener(new View.OnClickListener() {
+		((Button)findViewById(R.id.button_record)).setOnClickListener(new View.OnClickListener() {
 			@Override
-			public void onClick(View v) {
-				startTuning = ((ToggleButton)v).isChecked();
-				if (startTuning) {
-					// reinitialize parameters
-					numSamples = 0;
-					integral = 0;
-					refFreq = Float.valueOf((String)((Spinner)findViewById(R.id.spinner_freq)).getSelectedItem());
+			public void onClick(View v) {				
+				if (isTuning) {
+					isTuning = false;
+					controlMotor((byte)0, (byte)0);	// stop motor
+					((Button)findViewById(R.id.button_record)).setText("Start");
 				}
 				else {
-					controlMotor((byte)0, (byte)0);	// stop motor
+					// reinitialize parameters
+					isTuning = true;
+					numSamples = 0;
+					integral = 0;
+					((Button)findViewById(R.id.button_record)).setText("Stop");
 				}
 			}
 	    });
+	}
+	
+	public void popup() {
+		// popup menu for string selection
+		AlertDialog.Builder stringSelectionDialogBuilder = new AlertDialog.Builder(
+				this);
+		// getting string names (string1 to string 6)
+		String[] stringArray = new String[g_size];
+		for (int i = 0; i < g_size; i++) {
+			stringArray[i] = String.format("String %d", i + 1);
+		}
+		stringSelectionDialogBuilder.setTitle("Pick a string");
+		stringSelectionDialogBuilder.setItems(stringArray,
+				new DialogInterface.OnClickListener() {
+					// string selection
+					public void onClick(DialogInterface dialog, int which) {
+						// popup menu for note selection
+						AlertDialog.Builder noteSelectionDialogBuilder = new AlertDialog.Builder(
+								HelloBle.this);
+						// notes list from tuning_map based on string selected
+						noteSelectionDialogBuilder.setTitle("Pick a Note");
+						final int tuning_size = tuning_map.get(which).size();
+						String[] tuningsArray = tuning_map.get(which).values()
+								.toArray(new String[tuning_size - 1]);
+						final int string_selection = which;
+						setGainValues(string_selection);
+						noteSelectionDialogBuilder.setItems(tuningsArray,
+								new DialogInterface.OnClickListener() {
+									public void onClick(DialogInterface dialog,
+											int note_selection) {
+										// setting the tuning freq based on
+										// choice
+										set_tuning_freq(string_selection,
+												note_selection);
+									}
+								});
+
+						AlertDialog tuningDialog = noteSelectionDialogBuilder
+								.create();
+						tuningDialog.show();
+						tuningDialog.getWindow().setLayout(
+								getWindowManager().getDefaultDisplay()
+										.getWidth() / 2,
+								ViewGroup.LayoutParams.WRAP_CONTENT);
+					}
+				});
+
+		AlertDialog alertDialog = stringSelectionDialogBuilder.create();
+		alertDialog.show();
+		alertDialog.getWindow().setLayout(
+				getWindowManager().getDefaultDisplay().getWidth() / 2,
+				ViewGroup.LayoutParams.WRAP_CONTENT);
+	}
+
+	private void setup_tuning_variables() {
+		// notes and frequencies from
+		// http://www.seventhstring.com/resources/notefrequencies.html
+		note_table.put("C",
+				Arrays.asList(16.35, 32.7, 65.41, 130.8, 261.6, 523.3));
+		note_table.put("C#",
+				Arrays.asList(17.32, 34.65, 69.3, 138.6, 277.2, 544.4));
+		note_table.put("D",
+				Arrays.asList(18.35, 36.71, 73.42, 146.8, 293.7, 587.3));
+		note_table.put("Eb",
+				Arrays.asList(19.45, 38.89, 77.78, 155.6, 311.1, 622.3));
+		note_table.put("E",
+				Arrays.asList(20.6, 41.2, 82.41, 164.8, 329.6, 659.3));
+		note_table.put("F",
+				Arrays.asList(21.83, 43.65, 87.31, 174.6, 349.2, 698.5));
+		note_table.put("F#",
+				Arrays.asList(23.12, 46.25, 92.5, 185.0, 370.0, 740.0));
+		note_table.put("G",
+				Arrays.asList(24.5, 49.0, 98.0, 196.0, 392.0, 784.0));
+		note_table.put("G#",
+				Arrays.asList(25.96, 51.91, 103.8, 207.7, 415.3, 830.6));
+		note_table.put("A",
+				Arrays.asList(27.5, 55.0, 110.0, 220.0, 440.0, 880.0));
+		note_table.put("Bb",
+				Arrays.asList(29.14, 58.27, 116.5, 233.1, 466.2, 932.3));
+		note_table.put("B",
+				Arrays.asList(30.87, 61.74, 123.5, 246.9, 493.9, 987.8));
+
+		// string 1 notes (lowest string)
+		strings_list.add(Arrays.asList("C#2", "D2", "Eb2", "E2", "F2", "F#2", "G2"));
+		// string 2 notes
+		strings_list.add(Arrays.asList("F#2","G2","G#2","A2","Bb2","B2","C3"));
+		// string 3 notes
+		strings_list.add(Arrays.asList("B2","C3","C#3","D3","Eb3","E3","F3"));
+		// string 4 notes
+		strings_list.add(Arrays.asList("E3","F3","F#3","G3","G#3","A3","Bb3"));
+		// string 5 notes
+		strings_list.add(Arrays.asList("G#3","A3","Bb3","B3","C4","C#4","D4"));
+		// string 6 notes (highest string)
+		strings_list.add(Arrays.asList("C#4", "D4", "Eb4", "E4", "F4", "F#4", "G4"));
+
+		for (int i = 0; i < g_size; i++) {
+			tuning_map.add(new LinkedHashMap<Double, String>());
+			for (String n : strings_list.get(i)) {
+				int cut_at = n.length() - 1;
+				String note = n.substring(0, cut_at);
+				int row = Integer.valueOf(n.substring(cut_at));
+				double freq = note_table.get(note).get(row);
+				String msg = String.format("%1$s - %2$.2f Hz", note + row, freq);
+				tuning_map.get(i).put(freq, msg);
+			}
+		}
+	}
+
+	private void set_tuning_freq(int string_selection, int note_selection) {
+		String detailed_note = strings_list.get(string_selection).get(
+				note_selection);
+		// getting the note selection
+		int cut_at = detailed_note.length() - 1;
+		String note = detailed_note.substring(0, cut_at);
+		int row = Integer.valueOf(detailed_note.substring(cut_at));
+		refFreq = note_table.get(note).get(row);
+		TextView text = (TextView) findViewById(R.id.textView_ref);
+		text.setText(String.format("%.2f", refFreq));
+	}
+	
+	private void setGainValues(int stringSelection){
+		// strings 5/6 k=10, k_i =0
+		// string 3/4 k=16, k_i=2
+		// string 1/2 k =100, k_i =4
+		if (stringSelection <= 1){
+			k = 100;
+			k_i = 4;
+		} else if (stringSelection <= 3){
+			k = 16;
+			k_i = 2;
+		} else if (stringSelection <= 5) {
+			k = 10;
+			k_i = 0;
+		}
 	}
 	
 	private void setUiState() {
@@ -256,6 +412,8 @@ public class HelloBle extends Activity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_hello_ble);
+		
+		setup_tuning_variables();
 		
 		InitUIHandlers();
 		
@@ -350,7 +508,7 @@ public class HelloBle extends Activity {
 	            startActivityForResult(newIntent, REQUEST_SELECT_DEVICE);
 	            return true;
 	        case R.id.action_tuning:
-	        	Log.i("info", "tune");
+	        	popup();
 	            return true;
 	        default:
 	            return super.onOptionsItemSelected(item);
