@@ -27,4 +27,16 @@
         <item>110.00</item>
         <item>82.41</item>
     </string-array>
+    <string name="start_recording">Start Recording</string>
+    <string name="stop_recording">Stop Recording</string>
+	<string name="action_bluetooth">Bluetooth</string>
+    <string name="action_search_bluetooth">Search Bluetooth</string>
+    <string name="send_data">Automatic Tune</string>
+    <string name="error_audio">Audio Initialization Failed</string>
+    <string name="action_tuning">笙ｫ</string>
+    <string name="pick_string">Pick the String to Tune</string>
+    <string name="pick_note">Pick the Note to Tune to</string>
+    <string name="string_name">String %d</string>
+    <string name="string_message">%1$s - %2$.2f Hz</string>
+    <string name="display_message">Freq: %1$.2f\nSet: %2$.2f</string>
 </resources>
