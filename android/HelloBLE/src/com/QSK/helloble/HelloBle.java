@@ -71,6 +71,7 @@ public class HelloBle extends Activity {
 	private final int samplingFreq = 22050;
 	private final int bufferSize = 1024;
 	private int numSamples;
+	private long startTimestamp = 0;
 	private long lastTimestamp = 0;
 	
 	// controller parameters
@@ -123,11 +124,13 @@ public class HelloBle extends Activity {
 					isTuning = false;
 					lastTimestamp = System.currentTimeMillis();
 					
+					final double duration = (lastTimestamp - startTimestamp) / 1000.0;
 					runOnUiThread(new Runnable() {
 					     @Override
 					     public void run() {
 					    	 ((Button)findViewById(R.id.button_record)).setText("Start");
-						     Toast.makeText(getApplicationContext(), "Finished tuning", Toast.LENGTH_LONG).show();
+						     Toast.makeText(getApplicationContext(), String.format("Tuning completed in %.3f s", duration), 
+						    		 Toast.LENGTH_LONG).show();
 					    }
 					});
 					
@@ -261,6 +264,7 @@ public class HelloBle extends Activity {
 					isTuning = true;
 					numSamples = 0;
 					integral = 0;
+					startTimestamp = System.currentTimeMillis();
 					((Button)findViewById(R.id.button_record)).setText("Stop");
 				}
 			}
