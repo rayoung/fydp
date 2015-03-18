@@ -8,45 +8,50 @@
 package com.QSK.helloble;
 
 public final class R {
-    public static final class array {
-        public static final int freqs_array=0x7f050000;
-    }
     public static final class attr {
     }
     public static final class drawable {
         public static final int bg=0x7f020000;
         public static final int bluetooth_smart=0x7f020001;
         public static final int ic_action_bluetooth=0x7f020002;
-        public static final int ic_action_music=0x7f020003;
-        public static final int ic_launcher=0x7f020004;
+        public static final int ic_action_bluetooth_connected=0x7f020003;
+        public static final int ic_action_bluetooth_searching=0x7f020004;
+        public static final int ic_action_music=0x7f020005;
+        public static final int ic_launcher=0x7f020006;
     }
     public static final class id {
-        public static final int about=0x7f080008;
-        public static final int action_bluetooth=0x7f08000c;
-        public static final int action_tuning=0x7f08000d;
-        public static final int address=0x7f080006;
-        public static final int btn_cancel=0x7f08000b;
-        public static final int button_record=0x7f080004;
-        public static final int empty=0x7f08000a;
-        public static final int name=0x7f080005;
-        public static final int new_devices=0x7f080009;
-        public static final int textView_freq=0x7f080001;
-        public static final int textView_freqLabel=0x7f080000;
-        public static final int textView_ref=0x7f080003;
-        public static final int textView_refLabel=0x7f080002;
-        public static final int title_devices=0x7f080007;
+        public static final int about=0x7f07000c;
+        public static final int action_bluetooth=0x7f070010;
+        public static final int action_tuning=0x7f070011;
+        public static final int address=0x7f07000a;
+        public static final int btn_cancel=0x7f07000f;
+        public static final int button_record=0x7f070004;
+        public static final int empty=0x7f07000e;
+        public static final int fullscreen_content=0x7f070006;
+        public static final int fullscreen_content_controls=0x7f070005;
+        public static final int name=0x7f070009;
+        public static final int new_devices=0x7f07000d;
+        public static final int send_data=0x7f070008;
+        public static final int start_recording=0x7f070007;
+        public static final int textView_freq=0x7f070001;
+        public static final int textView_freqLabel=0x7f070000;
+        public static final int textView_ref=0x7f070003;
+        public static final int textView_refLabel=0x7f070002;
+        public static final int title_devices=0x7f07000b;
     }
     public static final class layout {
         public static final int activity_hello_ble=0x7f030000;
-        public static final int device_element=0x7f030001;
-        public static final int device_list=0x7f030002;
+        public static final int activity_main=0x7f030001;
+        public static final int device_element=0x7f030002;
+        public static final int device_list=0x7f030003;
     }
     public static final class menu {
-        public static final int activity_hello_ble=0x7f070000;
+        public static final int activity_hello_ble=0x7f060000;
     }
     public static final class string {
-        public static final int action_bluetooth=0x7f040010;
-        public static final int action_tuning=0x7f040011;
+        public static final int action_bluetooth=0x7f040012;
+        public static final int action_search_bluetooth=0x7f040013;
+        public static final int action_tuning=0x7f040016;
         public static final int alert_level=0x7f040004;
         public static final int alert_level_high=0x7f040006;
         public static final int alert_level_low=0x7f040005;
@@ -58,11 +63,20 @@ public final class R {
         public static final int button_selectdevice=0x7f04000a;
         public static final int connected=0x7f04000e;
         public static final int disconnected=0x7f04000f;
+        public static final int display_message=0x7f04001b;
+        public static final int error_audio=0x7f040015;
         public static final int hello_world=0x7f040001;
         public static final int key_fob_demo=0x7f040003;
         public static final int menu_settings=0x7f040002;
+        public static final int pick_note=0x7f040018;
+        public static final int pick_string=0x7f040017;
         public static final int scanning=0x7f04000c;
         public static final int select_device=0x7f04000b;
+        public static final int send_data=0x7f040014;
+        public static final int start_recording=0x7f040010;
+        public static final int stop_recording=0x7f040011;
+        public static final int string_message=0x7f04001a;
+        public static final int string_name=0x7f040019;
     }
     public static final class style {
         /** 
@@ -86,10 +100,10 @@ public final class R {
     
  API 14 theme customizations can go here. 
          */
-        public static final int AppBaseTheme=0x7f060000;
+        public static final int AppBaseTheme=0x7f050000;
         /**  Application theme. 
  All customizations that are NOT specific to a particular API-level can go here. 
          */
-        public static final int AppTheme=0x7f060001;
+        public static final int AppTheme=0x7f050001;
     }
 }

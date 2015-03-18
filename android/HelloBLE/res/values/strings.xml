@@ -17,16 +17,6 @@
     <string name="alert_level_off">Off</string>
     <string name="connected">Connected</string>
     <string name="disconnected">Not Connected</string>
-    <string name="action_bluetooth">Bluetooth</string>
-    <string name="action_tuning">♫</string>
-    <string-array name="freqs_array">
-        <item>329.63</item>
-        <item>246.94</item>
-        <item>196.00</item>
-        <item>146.83</item>
-        <item>110.00</item>
-        <item>82.41</item>
-    </string-array>
     <string name="start_recording">Start Recording</string>
     <string name="stop_recording">Stop Recording</string>
 	<string name="action_bluetooth">Bluetooth</string>
