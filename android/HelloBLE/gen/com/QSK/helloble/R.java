@@ -15,17 +15,20 @@ public final class R {
     }
     public static final class drawable {
         public static final int bluetooth_smart=0x7f020000;
-        public static final int ic_launcher=0x7f020001;
+        public static final int ic_action_bluetooth=0x7f020001;
+        public static final int ic_action_music=0x7f020002;
+        public static final int ic_launcher=0x7f020003;
     }
     public static final class id {
         public static final int about=0x7f080010;
+        public static final int action_bluetooth=0x7f080014;
+        public static final int action_tuning=0x7f080015;
         public static final int address=0x7f08000e;
         public static final int btn_cancel=0x7f080013;
         public static final int button_selectdevice=0x7f080004;
         public static final int deviceLabel=0x7f080000;
         public static final int deviceName=0x7f080001;
         public static final int empty=0x7f080012;
-        public static final int menu_settings=0x7f080014;
         public static final int name=0x7f08000d;
         public static final int new_devices=0x7f080011;
         public static final int seekBar_motor=0x7f080008;
@@ -49,6 +52,8 @@ public final class R {
         public static final int activity_hello_ble=0x7f070000;
     }
     public static final class string {
+        public static final int action_bluetooth=0x7f040010;
+        public static final int action_tuning=0x7f040011;
         public static final int alert_level=0x7f040004;
         public static final int alert_level_high=0x7f040006;
         public static final int alert_level_low=0x7f040005;

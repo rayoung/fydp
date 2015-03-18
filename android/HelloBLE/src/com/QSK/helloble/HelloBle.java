@@ -15,6 +15,7 @@ import com.QSK.bleProfiles.HelloBLEService;
 
 import android.os.Bundle;
 import android.os.IBinder;
+import android.app.ActionBar;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -28,6 +29,7 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.util.Log;
 import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.SeekBar.OnSeekBarChangeListener;
@@ -134,11 +136,13 @@ public class HelloBle extends Activity {
 	
 	private final void recordAudio(boolean start) {
 		if (start) {
+	        // init audio dispatcher
+			dispatcher = AudioDispatcherFactory.fromDefaultMicrophone(samplingFreq, bufferSize, bufferSize/4);
 			dispatcher.addAudioProcessor(pitch);
+			new Thread(dispatcher, "Audio Dispatcher").start();			
 		}
 		else {
-			dispatcher.removeAudioProcessor(pitch);
-			//freqFilter.clear();
+			dispatcher.stop();
 			controlMotor((byte)0, (byte)0);
 		}
 	}
@@ -253,7 +257,7 @@ public class HelloBle extends Activity {
 				setMotorVelocity();
 			}
  
-			public void onStartTrackingTouch(SeekBar seekBar) {				
+			public void onStartTrackingTouch(SeekBar seekBar) {
 				// TODO Auto-generated method stub
 			}
  
@@ -263,7 +267,7 @@ public class HelloBle extends Activity {
 		});
 		
 		// checked means CCW, unchecked means CW
-		((ToggleButton)findViewById(R.id.toggleButton_direction)).setOnClickListener(new View.OnClickListener() {	
+		((ToggleButton)findViewById(R.id.toggleButton_direction)).setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
 				motorDirection = ((ToggleButton)v).isChecked() ? (byte)1 : (byte)0;
@@ -277,27 +281,29 @@ public class HelloBle extends Activity {
 			public void onClick(View v) {
 				startTuning = ((ToggleButton)v).isChecked();
 				if (startTuning) {
-					// reinitialize audio parameters
+					// reinitialize parameters
 					numSamples = 0;
 					integral = 0;
 					refFreq = Float.valueOf((String)((Spinner)findViewById(R.id.spinner_freq)).getSelectedItem());
 				}
 				else {
 					controlMotor((byte)0, (byte)0);	// stop motor
-				}				
+				}
 			}
 	    });
 	}
 	
 	private void setUiState() {
+		ActionBar ab = getActionBar();
+		
+		int res = (mConnected) ? R.string.connected : R.string.disconnected;
+		ab.setSubtitle(res);
+		
 		((Button)findViewById(R.id.button_selectdevice)).setEnabled(!mConnected);
 		
     	if (mDevice != null) {
     		((TextView) findViewById(R.id.deviceName)).setText(mDevice.getName());
     	}
-
-    	int res = (mConnected) ? R.string.connected : R.string.disconnected;
-    	((TextView) findViewById(R.id.statusName)).setText(res);
     }
 	
 	@Override
@@ -327,11 +333,6 @@ public class HelloBle extends Activity {
 		
         Intent gattServiceIntent = new Intent(this, HelloBLEService.class);
         bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
-        
-        // init audio dispatcher
-		dispatcher = AudioDispatcherFactory.fromDefaultMicrophone(samplingFreq, bufferSize, bufferSize/4);
-		recordAudio(true);
-		new Thread(dispatcher, "Audio Dispatcher").start();
 	}
 	
     @Override
@@ -341,10 +342,11 @@ public class HelloBle extends Activity {
         if (mBluetoothLeService != null) {
         	if (mDevice != null) {
                 final boolean result = mBluetoothLeService.connect(mDevice.getAddress());
-                Log.d(TAG, "Connect request result=" + result);	
+                Log.d(TAG, "Connect request result=" + result);
         	}
         }
         recordAudio(true);
+        Log.i("event", "resume");
     }
 
     @Override
@@ -352,6 +354,14 @@ public class HelloBle extends Activity {
         super.onPause();
         recordAudio(false);
         unregisterReceiver(mGattUpdateReceiver);
+        Log.i("event", "pause");
+    }
+    
+    @Override
+    public void onDestroy() {
+    	super.onDestroy();
+        unbindService(mServiceConnection);
+        mBluetoothLeService = null;
     }
     
 	@Override
@@ -384,12 +394,20 @@ public class HelloBle extends Activity {
 		getMenuInflater().inflate(R.menu.activity_hello_ble, menu);
 		return true;
 	}
-    
-    @Override
-    public void onDestroy() {
-        dispatcher.stop();
-        unbindService(mServiceConnection);
-        mBluetoothLeService = null;
-    	super.onDestroy();
-    }
+	
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+	    // Handle presses on the action bar items
+	    switch (item.getItemId()) {
+	        case R.id.action_bluetooth:
+	            Intent newIntent = new Intent(HelloBle.this, DeviceListActivity.class);
+	            startActivityForResult(newIntent, REQUEST_SELECT_DEVICE);
+	            return true;
+	        case R.id.action_tuning:
+	        	Log.i("info", "tune");
+	            return true;
+	        default:
+	            return super.onOptionsItemSelected(item);
+	    }
+	}
 }
