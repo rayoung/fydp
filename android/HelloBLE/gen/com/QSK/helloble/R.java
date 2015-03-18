@@ -20,28 +20,19 @@ public final class R {
         public static final int ic_launcher=0x7f020003;
     }
     public static final class id {
-        public static final int about=0x7f080010;
-        public static final int action_bluetooth=0x7f080014;
-        public static final int action_tuning=0x7f080015;
-        public static final int address=0x7f08000e;
-        public static final int btn_cancel=0x7f080013;
-        public static final int button_selectdevice=0x7f080004;
-        public static final int deviceLabel=0x7f080000;
-        public static final int deviceName=0x7f080001;
-        public static final int empty=0x7f080012;
-        public static final int name=0x7f08000d;
-        public static final int new_devices=0x7f080011;
-        public static final int seekBar_motor=0x7f080008;
-        public static final int spinner_freq=0x7f080009;
-        public static final int statusLabel=0x7f080002;
-        public static final int statusName=0x7f080003;
-        public static final int textView_direction=0x7f080005;
-        public static final int textView_freq=0x7f08000c;
-        public static final int textView_recording=0x7f08000a;
-        public static final int textView_speed=0x7f080007;
-        public static final int title_devices=0x7f08000f;
-        public static final int toggleButton_direction=0x7f080006;
-        public static final int toggleButton_record=0x7f08000b;
+        public static final int about=0x7f080007;
+        public static final int action_bluetooth=0x7f08000b;
+        public static final int action_tuning=0x7f08000c;
+        public static final int address=0x7f080005;
+        public static final int btn_cancel=0x7f08000a;
+        public static final int empty=0x7f080009;
+        public static final int name=0x7f080004;
+        public static final int new_devices=0x7f080008;
+        public static final int spinner_freq=0x7f080000;
+        public static final int textView_freq=0x7f080003;
+        public static final int textView_recording=0x7f080001;
+        public static final int title_devices=0x7f080006;
+        public static final int toggleButton_record=0x7f080002;
     }
     public static final class layout {
         public static final int activity_hello_ble=0x7f030000;

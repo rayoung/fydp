@@ -31,11 +31,8 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.Button;
-import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.SeekBar;
 import android.widget.ToggleButton;
 import android.widget.Spinner;
 
@@ -56,15 +53,12 @@ public class HelloBle extends Activity {
 	private boolean mConnected = false;
 		
 	// motor parameters
-	private byte motorDirection = 0;	// 1 - CW, 0 - CCW
-	private byte motorDuty = 0;			// 0-255
 	private boolean startTuning = false;
 	private float integral = 0;
 	
 	// recording parameters
 	private final int samplingFreq = 22050;
 	private final int bufferSize = 1024;
-	private LinkedList<Float> freqFilter = new LinkedList<Float>();
 	private int numSamples;
 	private long lastTimestamp = 0;
 	
@@ -158,15 +152,6 @@ public class HelloBle extends Activity {
     	}
 	}
 	
-	private final void setMotorVelocity() {
-    	if (mBluetoothLeService != null && mGattCharacteristic != null) {
-    		byte[] data = new byte[2];
-    		data[0] = motorDirection;
-    		data[1] = motorDuty;	// 8-bit duty cycle
-    		mGattCharacteristic.setValue(data);
-    	}
-	}
-	
     // Code to manage Service lifecycle.
     private final ServiceConnection mServiceConnection = new ServiceConnection() {
 
@@ -242,39 +227,6 @@ public class HelloBle extends Activity {
     // UI functions
 	void InitUIHandlers()
 	{		
-		// Select Device
-		((Button)findViewById(R.id.button_selectdevice)).setOnClickListener(new View.OnClickListener() {
-	        public void onClick(View v) {
-	            Intent newIntent = new Intent(HelloBle.this, DeviceListActivity.class);
-	            startActivityForResult(newIntent, REQUEST_SELECT_DEVICE);
-	        }
-	    });
-		
-		((SeekBar)findViewById(R.id.seekBar_motor)).setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
- 
-			public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser){
-				motorDuty = (byte)progress;
-				setMotorVelocity();
-			}
- 
-			public void onStartTrackingTouch(SeekBar seekBar) {
-				// TODO Auto-generated method stub
-			}
- 
-			public void onStopTrackingTouch(SeekBar seekBar) {
-				// TODO Auto-generated method stub		
-			}
-		});
-		
-		// checked means CCW, unchecked means CW
-		((ToggleButton)findViewById(R.id.toggleButton_direction)).setOnClickListener(new View.OnClickListener() {
-			@Override
-			public void onClick(View v) {
-				motorDirection = ((ToggleButton)v).isChecked() ? (byte)1 : (byte)0;
-				setMotorVelocity();
-			}
-		});
-		
 		// Record
 		((ToggleButton)findViewById(R.id.toggleButton_record)).setOnClickListener(new View.OnClickListener() {
 			@Override
@@ -298,12 +250,6 @@ public class HelloBle extends Activity {
 		
 		int res = (mConnected) ? R.string.connected : R.string.disconnected;
 		ab.setSubtitle(res);
-		
-		((Button)findViewById(R.id.button_selectdevice)).setEnabled(!mConnected);
-		
-    	if (mDevice != null) {
-    		((TextView) findViewById(R.id.deviceName)).setText(mDevice.getName());
-    	}
     }
 	
 	@Override
