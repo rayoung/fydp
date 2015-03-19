@@ -104,7 +104,7 @@ public class HelloBle extends Activity {
 			
 			long delta_t = System.currentTimeMillis() - lastTimestamp;
 			// filter out samples where pitch wasn't detected
-			if (isTuning && (delta_t > 20) && (pitchInHz != 0)) {
+			if (isTuning && (delta_t > 15) && (pitchInHz != 0)) {
 				// ignore first 3 samples
 				numSamples++;
 				if (numSamples <= 3) {
@@ -112,6 +112,7 @@ public class HelloBle extends Activity {
 				}
 				
 				pitchInHz = (pitchInHz > 1.8 * refFreq) ? pitchInHz / 2 : pitchInHz;	// filter overtones
+				pitchInHz = (pitchInHz > 2.7 * refFreq) ? pitchInHz / 3 : pitchInHz;
 				pitchInHz = (pitchInHz < 0.55 * refFreq) ? pitchInHz * 2 : pitchInHz;	// filter undertones
 				
 				//Log.i("sample", String.format("%f", pitchInHz));
@@ -141,7 +142,10 @@ public class HelloBle extends Activity {
 				integral = integral + e * delta_t / 1000.0;
 				byte cw = (e < 0) ? (byte)0 : 1;
 				
-				e = k * Math.abs(e) + k_i * integral;
+				double k_comp = (cw == 0) ? k*0.8 : k;
+				double k_i_comp = (cw == 0) ? k_i*0.8 : k_i;
+				
+				e = k_comp * Math.abs(e) + k_i_comp * integral;
 				byte u = (e > 255) ? (byte)255 : (byte)e;	// saturate output
 
 				controlMotor(cw, u);
@@ -395,15 +399,19 @@ public class HelloBle extends Activity {
 		// string 1/2 k =100, k_i =4
 		if (stringSelection <= 1){
 			k = 100;
-			k_i = 4;
-		} else if (stringSelection <= 3){
-			k = 16;
-			k_i = 2;
+			k_i = 3;
+		} else if (stringSelection == 2){
+			k = 13;
+			k_i = 0.5f;
+		} else if (stringSelection == 3){
+			k = 13;
+			k_i = 0.5f;
 		} else if (stringSelection <= 5) {
-			k = 10;
+			k = 16;
 			k_i = 0;
 		}
 	}
+	
 	
 	private void setUiState() {
 		ActionBar ab = getActionBar();
