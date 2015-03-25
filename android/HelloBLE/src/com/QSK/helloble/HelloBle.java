@@ -80,8 +80,9 @@ public class HelloBle extends Activity {
 	// string 1/2 k =100, k_i =4
 	private int k =16; // 12 is good for the highest 2 strings (0 k_i) //16;
 	private float k_i = 2f; //4f;
+	private int minDuty = 0;
 	private double refFreq = 0;
-	
+	private double scaleDown = 1;
 	AudioDispatcher dispatcher;
 	PitchProcessor pitch = new PitchProcessor(PitchEstimationAlgorithm.YIN,
 											  samplingFreq,
@@ -142,12 +143,20 @@ public class HelloBle extends Activity {
 				integral = integral + e * delta_t / 1000.0;
 				byte cw = (e < 0) ? (byte)0 : 1;
 				
-				double k_comp = (cw == 0) ? k*0.8 : k;
+				double k_comp = (cw == 0) ? k*scaleDown : k;
+			    minDuty = (cw == 0) ? (int)(minDuty*scaleDown) : minDuty;
 				double k_i_comp = (cw == 0) ? k_i*0.8 : k_i;
 				
 				e = k_comp * Math.abs(e) + k_i_comp * integral;
-				byte u = (e > 255) ? (byte)255 : (byte)e;	// saturate output
-
+				byte u = (byte) minDuty;
+				if (e > 255){
+					u = (byte)255; 
+				} else if (e < minDuty) {
+					u = (byte) minDuty;
+				} else {
+					u = (byte)e;
+				}
+				
 				controlMotor(cw, u);
 				
 				lastTimestamp = System.currentTimeMillis();	
@@ -394,21 +403,29 @@ public class HelloBle extends Activity {
 	}
 	
 	private void setGainValues(int stringSelection){
-		// strings 5/6 k=10, k_i =0
-		// string 3/4 k=16, k_i=2
-		// string 1/2 k =100, k_i =4
+		// strings 5/6 k=16, k_i =0
+		// string 3/4 k=13 k_i=0.5
+		// string 1/2 k =100, k_i =3
 		if (stringSelection <= 1){
-			k = 100;
+			k = 40;
 			k_i = 3;
+			minDuty = 140;
+			scaleDown = 0.98;
 		} else if (stringSelection == 2){
-			k = 13;
+			k = 30;
 			k_i = 0.5f;
+			minDuty = 135;
+			scaleDown = 0.95;
 		} else if (stringSelection == 3){
-			k = 13;
+			k = 30;
 			k_i = 0.5f;
+			minDuty = 132;
+			scaleDown = 0.94;
 		} else if (stringSelection <= 5) {
-			k = 16;
+			k = 25;
 			k_i = 0;
+			minDuty = 100;
+			scaleDown = 0.5;
 		}
 	}
 	
